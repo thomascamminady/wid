@@ -7,7 +7,6 @@ is the wealth it holds. `plot_percentile_bars` shows the 100 percentiles;
 panel centred under the bar it enlarges and joined to it by zoom lines.
 """
 
-import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -57,17 +56,20 @@ NARROW_LABEL_INSET = 0.006  # fraction of the x range; keeps text off the next b
 LABEL_LIFT = 0.04  # fraction of the y range between a group's tallest bar and label
 Y_HEADROOM = 1.25  # y range = tallest bar * this, room for the top label
 
-# Staircase layout (figure fractions): every panel is PANEL_WIDTH wide and the
-# next one is centred under the right-most bar of the one above.
-STAIRCASE_FIGSIZE: tuple[float, float] = (12.0, 14.0)
-STAIRCASE_PANEL_WIDTH = 0.45
+# Staircase layout (figure fractions): wide panels, each stepping right by a
+# fixed amount. That keeps the next panel left of centre under the zoomed bar
+# (which sits at the right edge), so the chart uses the width with little
+# white space.
+STAIRCASE_FIGSIZE: tuple[float, float] = (13.0, 14.0)
+STAIRCASE_PANEL_WIDTH = 0.6
 STAIRCASE_PANEL_HEIGHT = 0.22
-STAIRCASE_FIRST_LEFT = 0.07
+STAIRCASE_LEFTS: tuple[float, ...] = (0.07, 0.22, 0.37)
 STAIRCASE_BOTTOMS: tuple[float, ...] = (0.71, 0.395, 0.08)
-# Zoom lines start this far below the x axis (axes fraction), i.e. just under
-# the "100%" tick label, and their labels sit this far off the line (points).
+# Zoom lines start from one point this far below the x axis (axes fraction),
+# just under the "100%" tick label. Their label sits this far right of the
+# right-hand line's midpoint (points).
 ZOOM_LINE_START_Y = -0.12
-ZOOM_LABEL_OFFSET = 4.0
+ZOOM_LABEL_OFFSET = 8.0
 
 
 def format_eur(value: float, _pos: int | None = None) -> str:
@@ -252,9 +254,10 @@ def link_zoom(
 ) -> None:
     """Box the bar(s) x0..x1 in `ax_from` and draw zoom lines down to `ax_to`.
 
-    The lines start just under the x axis of `ax_from` (below the "100%" tick
-    label) and end at the top corners of `ax_to`, which spans exactly x0..x1.
-    `label` is written along the right-hand line.
+    Both lines start at one point just under the x axis of `ax_from` (below the
+    "100%" tick label) and end at the top corners of `ax_to`, which spans
+    exactly x0..x1.
+    `label` is written next to the right-hand line.
     """
     ax_from.add_patch(
         Rectangle(
@@ -267,12 +270,14 @@ def link_zoom(
             zorder=5,
         )
     )
+    # Both lines leave from one point under "100%" (the right edge, x1).
     below_axis = blended_transform_factory(ax_from.transData, ax_from.transAxes)
+    start = (x1, ZOOM_LINE_START_Y)
     y_top = ax_to.get_ylim()[1]
     for x in (x0, x1):
         fig.add_artist(
             ConnectionPatch(
-                xyA=(x, ZOOM_LINE_START_Y),
+                xyA=start,
                 coordsA=below_axis,
                 xyB=(x, y_top),
                 coordsB=ax_to.transData,
@@ -281,29 +286,20 @@ def link_zoom(
             )
         )
 
-    # Label along the right-hand line: rotate to its angle (display space, so
-    # it is independent of the axes' data scales) and nudge it off the line.
-    start = below_axis.transform((x1, ZOOM_LINE_START_Y))
-    end = ax_to.transData.transform((x1, y_top))
-    angle = math.degrees(math.atan2(end[1] - start[1], end[0] - start[0]))
-    mid = fig.transFigure.inverted().transform((start + end) / 2)
-    normal = math.radians(angle + 90)
+    # Label just right of the right-hand line's midpoint, kept horizontal.
+    start_px = below_axis.transform(start)
+    end_px = ax_to.transData.transform((x1, y_top))
+    mid = fig.transFigure.inverted().transform((start_px + end_px) / 2)
     fig.text(
         mid[0],
         mid[1],
         label,
-        rotation=angle,
-        rotation_mode="anchor",
-        ha="center",
-        va="bottom",
+        ha="left",
+        va="center",
         fontsize=LABEL_FONTSIZE + 1,
         color=INK_SECONDARY,
         transform=offset_copy(
-            fig.transFigure,
-            fig=fig,
-            x=ZOOM_LABEL_OFFSET * math.cos(normal),
-            y=ZOOM_LABEL_OFFSET * math.sin(normal),
-            units="points",
+            fig.transFigure, fig=fig, x=ZOOM_LABEL_OFFSET, y=0.0, units="points"
         ),
     )
 
@@ -317,13 +313,9 @@ def plot_percentile_bars_staircase(
 ) -> None:
     """The three panels of `plot_percentile_bars_zoom` as a staircase of zooms."""
     fig = plt.figure(figsize=STAIRCASE_FIGSIZE, facecolor=SURFACE)
-    lefts = [STAIRCASE_FIRST_LEFT]
-    for _ in STAIRCASE_BOTTOMS[1:]:
-        # Centre the next panel under the right edge of this one (its last bar).
-        lefts.append(lefts[-1] + STAIRCASE_PANEL_WIDTH / 2)
     ax_all, ax_top1, ax_top001 = (
         fig.add_axes((left, bottom, STAIRCASE_PANEL_WIDTH, STAIRCASE_PANEL_HEIGHT))
-        for left, bottom in zip(lefts, STAIRCASE_BOTTOMS, strict=True)
+        for left, bottom in zip(STAIRCASE_LEFTS, STAIRCASE_BOTTOMS, strict=True)
     )
     # x labels sit left so the zoom lines, which leave from under "100%" on the
     # right, never cross them.
@@ -365,7 +357,7 @@ def plot_percentile_bars_staircase(
         99.0,
         100.0,
         df_pct["avg_eur"][-1],
-        "Zoom into the top 1%",
+        "Zoom into\nthe top 1%",
     )
     link_zoom(
         fig,
@@ -374,6 +366,6 @@ def plot_percentile_bars_staircase(
         99.99,
         100.0,
         df_top1["avg_eur"][-1],
-        "Zoom into the top 0.01%",
+        "Zoom into\nthe top 0.01%",
     )
     save(fig, out_path)
