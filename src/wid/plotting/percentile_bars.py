@@ -65,10 +65,7 @@ def plot_percentile_bars(df_pct: pl.DataFrame, year: int, out_path: Path) -> Non
         idx = [i for i, p in enumerate(pct) if x0 <= p < x1]
         group_share = sum(share[i] for i in idx)
         y = max(max(avg[i] for i in idx), 0.0) + lift
-        if spec.upper == 100.0:
-            text = f"{spec.name}: {group_share:.1%} of all wealth, virtually nothing"
-        else:
-            text = f"{spec.name}\n{group_share:.1%} of all wealth"
+        text = f"{spec.name}\n{group_share:.1%} of all wealth"
         wide = x1 - x0 >= CENTRED_LABEL_MIN_WIDTH
         if x1 - x0 > 1:
             # Bracket over the group's bars.
