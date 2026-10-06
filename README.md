@@ -24,7 +24,7 @@ make check       # all pre-commit hooks on all files
 ```
 
 The commands are also available directly: `uv run fetch-data`, `uv run plot-line`,
-`uv run plot-donut`, `uv run plot-bar-donut`, `uv run plot-percentiles`, `uv run plot-percentiles-zoom`, `uv run plot-percentiles-staircase`, `uv run plot-wealth-donut` (each takes `--year`, `--csv_path`, `--out_path`).
+`uv run plot-donut`, `uv run plot-bar-donut`, `uv run plot-percentiles`, `uv run plot-percentiles-zoom`, `uv run plot-percentiles-staircase`, `uv run plot-wealth-donut`, `uv run plot-balance` (each takes `--year`, `--csv_path`, `--out_path`).
 
 ## Data
 

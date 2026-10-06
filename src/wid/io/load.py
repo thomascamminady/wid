@@ -5,6 +5,7 @@ from pathlib import Path
 import polars as pl
 
 DEFAULT_CSV = Path("data/germany_wealth_gpercentiles_wid.csv")
+DEFAULT_ADULTS_CSV = Path("data/germany_adults_wid.csv")
 
 
 def load_gpercentiles(
@@ -91,3 +92,8 @@ def wealth_in_top_percent(
         )
         .sort("lo")
     )
+
+
+def load_adults(csv_path: Path = DEFAULT_ADULTS_CSV, year: int = 2024) -> int:
+    """Number of adults (20+) in `year`, WID variable npopuli992."""
+    return pl.read_csv(csv_path).filter(pl.col("year") == year)["adults"].item()

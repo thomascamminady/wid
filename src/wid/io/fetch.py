@@ -6,7 +6,7 @@ from pathlib import Path
 import polars as pl
 from remotezip import RemoteZip
 
-from wid.io.load import DEFAULT_CSV
+from wid.io.load import DEFAULT_ADULTS_CSV, DEFAULT_CSV
 
 WID_BULK_URL = "https://wid.world/bulk_download/wid_all_data.zip"
 RAW_FILE_NAME = "WID_data_DE.csv"
@@ -59,12 +59,30 @@ def tidy_gpercentiles(raw_csv: Path) -> pl.DataFrame:
     )
 
 
+def tidy_adults(raw_csv: Path) -> pl.DataFrame:
+    """Number of adults (20+) per year, WID variable npopuli992."""
+    return (
+        pl.read_csv(raw_csv, separator=";", infer_schema_length=0)
+        .filter(pl.col("variable") == "npopuli992", pl.col("percentile") == "p0p100")
+        .select(
+            pl.col("year").cast(pl.Int32),
+            adults=pl.col("value").cast(pl.Float64).round().cast(pl.Int64),
+        )
+        .sort("year")
+    )
+
+
 def fetch_and_tidy(
-    out_csv: Path = DEFAULT_CSV, raw_dir: Path = DEFAULT_RAW_DIR
+    out_csv: Path = DEFAULT_CSV,
+    raw_dir: Path = DEFAULT_RAW_DIR,
+    adults_csv: Path = DEFAULT_ADULTS_CSV,
 ) -> Path:
     raw_csv = fetch_raw(raw_dir)
     df = tidy_gpercentiles(raw_csv)
     out_csv.parent.mkdir(parents=True, exist_ok=True)
     df.write_csv(out_csv)
     print(f"Saved {out_csv} ({df.height} rows, {df['year'].n_unique()} years)")
+    adults = tidy_adults(raw_csv)
+    adults.write_csv(adults_csv)
+    print(f"Saved {adults_csv} ({adults.height} years)")
     return out_csv

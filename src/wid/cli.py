@@ -5,14 +5,18 @@ from pathlib import Path
 import fire
 
 from wid.io import (
+    DEFAULT_ADULTS_CSV,
     DEFAULT_CSV,
     fetch_and_tidy,
+    load_adults,
     load_cumulative,
+    load_gpercentiles,
     wealth_by_percentile,
     wealth_in_top_percent,
 )
 from wid.io.fetch import DEFAULT_RAW_DIR
 from wid.plotting import (
+    plot_balance,
     plot_bar_of_donut,
     plot_donuts,
     plot_line_chart,
@@ -119,6 +123,22 @@ def plot_percentiles_staircase(
     )
 
 
+def plot_balance_scale(
+    year: int = DEFAULT_YEAR,
+    csv_path: str = str(DEFAULT_CSV),
+    adults_csv: str = str(DEFAULT_ADULTS_CSV),
+    out_path: str = str(OUTPUT_DIR / "germany_wealth_balance.png"),
+) -> None:
+    """Balance scale: the richest 0.001% against the poorest 50%."""
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    plot_balance(
+        load_gpercentiles(Path(csv_path), year),
+        load_adults(Path(adults_csv), year),
+        year,
+        Path(out_path),
+    )
+
+
 def fetch_data_main() -> None:
     fire.Fire(fetch_data)
 
@@ -149,3 +169,7 @@ def plot_percentiles_zoom_main() -> None:
 
 def plot_percentiles_staircase_main() -> None:
     fire.Fire(plot_percentiles_staircase)
+
+
+def plot_balance_main() -> None:
+    fire.Fire(plot_balance_scale)

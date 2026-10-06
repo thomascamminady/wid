@@ -1,6 +1,6 @@
 YEAR ?= 2024
 
-.PHONY: help install hooks data plot-line plot-donut plot-bar-donut plot-percentiles plot-percentiles-zoom plot-percentiles-staircase plot-wealth-donut plots format lint check clean
+.PHONY: help install hooks data plot-line plot-donut plot-bar-donut plot-percentiles plot-percentiles-zoom plot-percentiles-staircase plot-wealth-donut plot-balance plots format lint check clean
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -35,7 +35,10 @@ plot-percentiles-staircase: ## Percentile zooms as a staircase with zoom lines (
 plot-wealth-donut: ## Wealth donut with the top 1% arc in purple shades (YEAR=2024)
 	uv run plot-wealth-donut --year $(YEAR)
 
-plots: plot-line plot-donut plot-bar-donut plot-percentiles plot-percentiles-zoom plot-percentiles-staircase plot-wealth-donut ## All charts
+plot-balance: ## Balance scale: richest 0.001% vs poorest 50% (YEAR=2024)
+	uv run plot-balance --year $(YEAR)
+
+plots: plot-line plot-donut plot-bar-donut plot-percentiles plot-percentiles-zoom plot-percentiles-staircase plot-wealth-donut plot-balance ## All charts
 
 format: ## Format with ruff
 	uv run ruff format src

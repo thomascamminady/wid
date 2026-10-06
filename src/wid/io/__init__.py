@@ -1,9 +1,11 @@
 """Data access: fetch from WID.world and load the tidy CSV."""
 
-from wid.io.fetch import fetch_and_tidy, g_percentiles, tidy_gpercentiles
+from wid.io.fetch import fetch_and_tidy, g_percentiles, tidy_adults, tidy_gpercentiles
 from wid.io.load import (
+    DEFAULT_ADULTS_CSV,
     DEFAULT_CSV,
     cum_share_at,
+    load_adults,
     load_cumulative,
     load_gpercentiles,
     wealth_by_percentile,
@@ -11,12 +13,15 @@ from wid.io.load import (
 )
 
 __all__ = [
+    "DEFAULT_ADULTS_CSV",
     "DEFAULT_CSV",
     "cum_share_at",
     "fetch_and_tidy",
     "g_percentiles",
+    "load_adults",
     "load_cumulative",
     "load_gpercentiles",
+    "tidy_adults",
     "tidy_gpercentiles",
     "wealth_by_percentile",
     "wealth_in_top_percent",
