@@ -36,6 +36,7 @@ BEAM_WIDTH = 5.0
 LINE_WIDTH = 2.5
 SCALE_GREY = "#8c8a85"  # beam and wedge: lighter than the text grey
 TITLE_GAP = 0.32  # data units above the big circle
+RICH_LABEL_GAP = 0.06
 SUBTITLE_GAP = 0.12
 
 
@@ -92,15 +93,15 @@ def plot_balance(bins: pl.DataFrame, adults: int, year: int, out_path: Path) -> 
     ax.add_patch(Circle(rich_centre, rich_radius, color=VIOLET, zorder=4))
     ax.add_patch(Circle(poor_centre, DISC_RADIUS, color=MAGENTA, zorder=4))
 
-    ax.annotate(
+    # Label sits just above the small circle, no leader line.
+    ax.text(
+        rich_centre[0],
+        rich_centre[1] + rich_radius + RICH_LABEL_GAP,
         f"Richest {RICH_PCT:g}%\n{n_rich:,.0f} adults\n{rich_share:.1f}% of all wealth",
-        xy=(rich_centre[0], rich_centre[1] + rich_radius),
-        xytext=(rich_centre[0], rich_centre[1] + 0.95),
         ha="center",
         va="bottom",
         fontsize=TEXT_SIZE,
         color=VIOLET,
-        arrowprops={"arrowstyle": "-", "color": VIOLET, "lw": LINE_WIDTH, "shrinkB": 4},
     )
     ax.text(
         *poor_centre,
@@ -140,12 +141,12 @@ def plot_balance(bins: pl.DataFrame, adults: int, year: int, out_path: Path) -> 
         fontsize=TEXT_SIZE,
         color=INK_SECONDARY,
     )
-    # Footer in two lines, its last line level with the wedge's base.
+    # Footer in two lines, bottom left, its last line level with the wedge's base.
     ax.text(
-        x_max,
+        x_min,
         -FULCRUM_HEIGHT,
         SOURCE_NOTE.replace(" · ", "\n"),
-        ha="right",
+        ha="left",
         va="bottom",
         fontsize=FOOTER_SIZE,
         color=INK_SECONDARY,
