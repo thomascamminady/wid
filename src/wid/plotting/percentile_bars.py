@@ -38,6 +38,11 @@ TOP_PERCENT_GROUPS: tuple[BarGroup, ...] = (
     BarGroup("Top 0.1–0.01%", 99.9, 99.99, TOP_PARTS[1].color),
     BarGroup("Top 0.01%", 99.99, 100.0, TOP_PARTS[-1].color),
 )
+# Inside the top 0.01%: WID's finest bins, 0.001% of adults each.
+TOP_BASIS_POINT_GROUPS: tuple[BarGroup, ...] = (
+    BarGroup("Top 0.01–0.001%", 99.99, 99.999, TOP_PARTS[2].color),
+    BarGroup("Top 0.001%", 99.999, 100.0, TOP_PARTS[3].color),
+)
 
 # Groups narrower than this fraction of the x range get a right-aligned label
 # ending at the group's right edge, so it does not run off the chart.
@@ -48,6 +53,8 @@ Y_HEADROOM = 1.25  # y range = tallest bar * this, room for the top label
 
 
 def format_eur(value: float, _pos: int | None = None) -> str:
+    if abs(value) >= 1e9:
+        return f"€{value / 1e9:g}bn"
     if abs(value) >= 1e6:
         return f"€{value / 1e6:g}M"
     if abs(value) >= 1e3:
@@ -167,32 +174,45 @@ def plot_percentile_bars(df_pct: pl.DataFrame, year: int, out_path: Path) -> Non
 
 
 def plot_percentile_bars_zoom(
-    df_pct: pl.DataFrame, df_top: pl.DataFrame, year: int, out_path: Path
+    df_pct: pl.DataFrame,
+    df_top1: pl.DataFrame,
+    df_top001: pl.DataFrame,
+    year: int,
+    out_path: Path,
 ) -> None:
-    """The percentile chart, plus a panel zooming into its top-1% bar.
+    """The percentile chart, then zooms into its top 1% and into the top 0.01%.
 
-    `df_top` as returned by `wid.io.wealth_in_top_percent`.
+    `df_top1` and `df_top001` as returned by `wid.io.wealth_in_top_percent` with
+    `top_pct=1.0` and `top_pct=0.01`.
     """
-    fig, (ax_all, ax_top) = plt.subplots(2, 1, figsize=(10, 9.4), facecolor=SURFACE)
+    fig, (ax_all, ax_top1, ax_top001) = plt.subplots(
+        3, 1, figsize=(10, 13.8), facecolor=SURFACE
+    )
     draw_all_adults(ax_all, df_pct)
     draw_bars(
-        ax_top,
-        df_top,
+        ax_top1,
+        df_top1,
         TOP_PERCENT_GROUPS,
         tick_step=0.1,
         xlabel="The richest 1% of adults. Bars are 0.1% of adults wide up to 99.9%, "
         "then 0.01%.",
+    )
+    draw_bars(
+        ax_top001,
+        df_top001,
+        TOP_BASIS_POINT_GROUPS,
+        tick_step=0.001,
+        xlabel="The richest 0.01% of adults. Each bar is 0.001% of adults.",
     )
     fig.suptitle(
         f"Germany {year}: average wealth in each percentile",
         color=INK_SECONDARY,
         fontsize=16,
     )
-    ax_top.set_title(
-        "Zoom into the top 1%",
-        color=INK_SECONDARY,
-        fontsize=12,
-        pad=10,
-    )
-    fig.tight_layout(rect=(0, 0.02, 1, 1), h_pad=3)
+    for ax, title in (
+        (ax_top1, "Zoom into the top 1%"),
+        (ax_top001, "Zoom into the top 0.01%"),
+    ):
+        ax.set_title(title, color=INK_SECONDARY, fontsize=12, pad=10)
+    fig.tight_layout(rect=(0, 0.015, 1, 1), h_pad=3)
     save(fig, out_path)

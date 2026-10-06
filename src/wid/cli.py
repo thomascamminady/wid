@@ -91,11 +91,12 @@ def plot_percentiles_zoom(
     csv_path: str = str(DEFAULT_CSV),
     out_path: str = str(OUTPUT_DIR / "germany_wealth_percentiles_zoom.png"),
 ) -> None:
-    """Percentile chart with a second panel zooming into the top 1%."""
+    """Percentile chart with zooms into the top 1% and the top 0.01%."""
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
     plot_percentile_bars_zoom(
         wealth_by_percentile(Path(csv_path), year),
-        wealth_in_top_percent(Path(csv_path), year),
+        wealth_in_top_percent(Path(csv_path), year, step=0.01, top_pct=1.0),
+        wealth_in_top_percent(Path(csv_path), year, step=0.001, top_pct=0.01),
         year,
         Path(out_path),
     )

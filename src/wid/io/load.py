@@ -56,9 +56,12 @@ def wealth_by_percentile(
 
 
 def wealth_in_top_percent(
-    csv_path: Path = DEFAULT_CSV, year: int = 2024, step: float = 0.01
+    csv_path: Path = DEFAULT_CSV,
+    year: int = 2024,
+    step: float = 0.01,
+    top_pct: float = 1.0,
 ) -> pl.DataFrame:
-    """Average wealth and share of all wealth for bins inside the top 1% (p99-p100).
+    """Average wealth and share of all wealth for bins inside the top `top_pct`%.
 
     WID bins are 0.1% wide up to p99.9, 0.01% up to p99.99 and 0.001% above.
     Bins narrower than `step` are merged into `step`-wide bins; wider bins stay
@@ -72,7 +75,7 @@ def wealth_in_top_percent(
         wealth=width * pl.col("avg_eur")
     )
     return (
-        bins.filter(pl.col("lo") >= 99.0)
+        bins.filter(pl.col("lo") >= round(100.0 - top_pct, 6))
         .group_by(
             lo=pl.when(narrow).then(merged_lo).otherwise(pl.col("lo")),
             hi=pl.when(narrow)
