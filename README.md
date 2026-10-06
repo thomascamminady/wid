@@ -14,7 +14,7 @@ wealth. The unit is equal-split adults aged 20+.
 make install     # uv sync
 make hooks       # install pre-commit hooks (ruff, ty, nbstripout)
 make data        # fetch WID_data_DE.csv from the bulk zip -> data/germany_wealth_gpercentiles_wid.csv
-make plots       # line chart, donuts, and donuts with a zoom inset -> output/
+make plots       # line chart, donuts, and donuts with zoom panels -> output/
 make plot-donut YEAR=2018
 make check       # all pre-commit hooks on all files
 ```

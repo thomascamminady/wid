@@ -44,7 +44,7 @@ def plot_donut_zoom(
     csv_path: str = str(DEFAULT_CSV),
     out_path: str = str(OUTPUT_DIR / "germany_wealth_donuts_zoom.png"),
 ) -> None:
-    """Donuts with the top 1% as one group and a zoom inset on its sliver."""
+    """Donuts with a chain of zoom panels resolving the top 1% of adults."""
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
     plot_donuts_zoom(load_cumulative(Path(csv_path), year), year, Path(out_path))
 
