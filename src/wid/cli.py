@@ -25,10 +25,18 @@ from wid.plotting import (
     plot_percentile_bars_zoom,
     plot_wealth_donut_shaded,
 )
-from wid.plotting.percentile_bars import Lang
+from wid.plotting.i18n import Lang
 
 DEFAULT_YEAR = 2024
 OUTPUT_DIR = Path("output")
+
+
+def output_path(stem: str, lang: Lang, out_path: str | None) -> Path:
+    """`out_path`, or output/<stem>.png (with a _de suffix for German)."""
+    suffix = "" if lang == "en" else f"_{lang}"
+    path = Path(out_path or OUTPUT_DIR / f"{stem}{suffix}.png")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 def fetch_data(
@@ -51,21 +59,23 @@ def plot_line(
 def plot_donut(
     year: int = DEFAULT_YEAR,
     csv_path: str = str(DEFAULT_CSV),
-    out_path: str = str(OUTPUT_DIR / "germany_wealth_donuts.png"),
+    out_path: str | None = None,
+    lang: Lang = "en",
 ) -> None:
-    """Two donuts: share of adults vs. share of wealth per group."""
-    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
-    plot_donuts(load_cumulative(Path(csv_path), year), year, Path(out_path))
+    """Two donuts: share of adults vs. share of wealth per group (lang: en or de)."""
+    path = output_path("germany_wealth_donuts", lang, out_path)
+    plot_donuts(load_cumulative(Path(csv_path), year), year, path, lang)
 
 
 def plot_bar_donut(
     year: int = DEFAULT_YEAR,
     csv_path: str = str(DEFAULT_CSV),
-    out_path: str = str(OUTPUT_DIR / "germany_wealth_bar_of_donut.png"),
+    out_path: str | None = None,
+    lang: Lang = "en",
 ) -> None:
-    """Wealth donut with the top 1% as one slice, split up in a bar beside it."""
-    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
-    plot_bar_of_donut(load_cumulative(Path(csv_path), year), year, Path(out_path))
+    """Wealth donut with the top 1% as one slice, split up in a bar beside it (lang: en or de)."""
+    path = output_path("germany_wealth_bar_of_donut", lang, out_path)
+    plot_bar_of_donut(load_cumulative(Path(csv_path), year), year, path, lang)
 
 
 def plot_percentiles(
@@ -83,13 +93,12 @@ def plot_percentiles(
 def plot_wealth_donut(
     year: int = DEFAULT_YEAR,
     csv_path: str = str(DEFAULT_CSV),
-    out_path: str = str(OUTPUT_DIR / "germany_wealth_donut_shaded.png"),
+    out_path: str | None = None,
+    lang: Lang = "en",
 ) -> None:
-    """Wealth donut with the top 1% arc split into purple shades."""
-    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
-    plot_wealth_donut_shaded(
-        load_cumulative(Path(csv_path), year), year, Path(out_path)
-    )
+    """Wealth donut with the top 1% arc split into purple shades (lang: en or de)."""
+    path = output_path("germany_wealth_donut_shaded", lang, out_path)
+    plot_wealth_donut_shaded(load_cumulative(Path(csv_path), year), year, path, lang)
 
 
 def plot_percentiles_zoom(
@@ -115,11 +124,7 @@ def plot_percentiles_staircase(
     lang: Lang = "en",
 ) -> None:
     """The percentile zooms as a staircase joined by zoom lines (lang: en or de)."""
-    suffix = "" if lang == "en" else f"_{lang}"
-    path = Path(
-        out_path or OUTPUT_DIR / f"germany_wealth_percentiles_staircase{suffix}.png"
-    )
-    path.parent.mkdir(parents=True, exist_ok=True)
+    path = output_path("germany_wealth_percentiles_staircase", lang, out_path)
     plot_percentile_bars_staircase(
         wealth_by_percentile(Path(csv_path), year),
         wealth_in_top_percent(Path(csv_path), year, step=0.01, top_pct=1.0),

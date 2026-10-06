@@ -10,10 +10,10 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
 from wid.io.load import cum_share_at
+from wid.plotting.i18n import FOOTER, Lang, format_percent, group_label
 from wid.plotting.style import (
     INK_SECONDARY,
     LABEL_FONTSIZE,
-    SOURCE_NOTE,
     SURFACE,
 )
 
@@ -214,7 +214,25 @@ def plot_donut(
     return mids
 
 
-def plot_wealth_donut(ax: Axes, groups: list[Group]) -> None:
+CENTRE_TEXT: dict[Lang, dict[str, str]] = {
+    "en": {"adults": "Share of\nadults", "wealth": "Share of\nwealth"},
+    "de": {"adults": "Anteil an\nErwachsenen", "wealth": "Anteil am\nVermögen"},
+}
+TITLE: dict[Lang, str] = {
+    "en": "Germany {year}: who owns the wealth",
+    "de": "Deutschland {year}: Wem gehört das Vermögen?",
+}
+
+
+def wealth_labels(groups: list[Group], lang: Lang) -> list[str]:
+    """Two lines per group: its name and its share of all wealth."""
+    return [
+        f"{group_label(g.name, lang)}\n{format_percent(g.wealth_pct, lang)}"
+        for g in groups
+    ]
+
+
+def plot_wealth_donut(ax: Axes, groups: list[Group], lang: Lang = "en") -> None:
     """Wealth donut, rotated so ALIGN_GROUP lines up with the adults donut."""
     wealth = [g.wealth_pct for g in groups]
     align = [g.name for g in groups].index(ALIGN_GROUP)
@@ -222,22 +240,20 @@ def plot_wealth_donut(ax: Axes, groups: list[Group]) -> None:
         ax,
         groups,
         wealth,
-        [f"{g.name}\n{g.wealth_pct:.1f}%" for g in groups],
-        "Share of\nwealth",
+        wealth_labels(groups, lang),
+        CENTRE_TEXT[lang]["wealth"],
         start_angle=aligned_start_angle(
             wealth, [g.population_pct for g in groups], align
         ),
     )
 
 
-def finish_figure(fig: Figure, year: int, out_path: Path) -> None:
-    fig.suptitle(
-        f"Germany {year}: who owns the wealth", color=INK_SECONDARY, fontsize=20
-    )
+def finish_figure(fig: Figure, year: int, out_path: Path, lang: Lang = "en") -> None:
+    fig.suptitle(TITLE[lang].format(year=year), color=INK_SECONDARY, fontsize=20)
     fig.text(
         0.99,
         0.02,
-        SOURCE_NOTE,
+        FOOTER[lang],
         fontsize=8,
         ha="right",
         va="bottom",
@@ -248,7 +264,7 @@ def finish_figure(fig: Figure, year: int, out_path: Path) -> None:
     print(f"Saved {out_path}")
 
 
-def plot_donuts(df: pl.DataFrame, year: int, out_path: Path) -> None:
+def plot_donuts(df: pl.DataFrame, year: int, out_path: Path, lang: Lang = "en") -> None:
     groups = build_groups(df, DETAILED_GROUPS)
     fig, (ax_pop, ax_wealth) = plt.subplots(1, 2, figsize=(11, 5.6), facecolor=SURFACE)
     fig.subplots_adjust(left=0.01, right=0.99, top=0.88, bottom=0.08, wspace=0.0)
@@ -258,8 +274,8 @@ def plot_donuts(df: pl.DataFrame, year: int, out_path: Path) -> None:
         ax_pop,
         groups,
         [g.population_pct for g in groups],
-        [g.name for g in groups],
-        "Share of\nadults",
+        [group_label(g.name, lang) for g in groups],
+        CENTRE_TEXT[lang]["adults"],
     )
-    plot_wealth_donut(ax_wealth, groups)
-    finish_figure(fig, year, out_path)
+    plot_wealth_donut(ax_wealth, groups, lang)
+    finish_figure(fig, year, out_path, lang)

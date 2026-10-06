@@ -14,6 +14,7 @@ from matplotlib.patches import ConnectionPatch
 
 from wid.plotting.donut_chart import (
     BLUE,
+    CENTRE_TEXT,
     GREEN,
     MAGENTA,
     VIOLET,
@@ -22,7 +23,9 @@ from wid.plotting.donut_chart import (
     build_groups,
     finish_figure,
     plot_donut,
+    wealth_labels,
 )
+from wid.plotting.i18n import Lang, format_percent, group_label
 from wid.plotting.style import INK_SECONDARY, LABEL_FONTSIZE, SURFACE
 
 TOP_NAME = "Top 1%"
@@ -49,7 +52,7 @@ BAR_X_LIMITS: tuple[float, float] = (-0.25, 0.95)  # room for labels on the righ
 BAR_Y_MARGIN = 0.18  # fraction of the bar height left free above and below
 
 
-def plot_bar(ax: Axes, parts: list[Group], total_pct: float) -> None:
+def plot_bar(ax: Axes, parts: list[Group], total_pct: float, lang: Lang = "en") -> None:
     """Stack the parts bottom-up (richest on top) with labels to the right."""
     bottom = 0.0
     for part in parts:
@@ -65,7 +68,7 @@ def plot_bar(ax: Axes, parts: list[Group], total_pct: float) -> None:
         ax.text(
             BAR_WIDTH / 2 + 0.06,
             bottom + part.wealth_pct / 2,
-            f"{part.name}\n{part.wealth_pct:.1f}%",
+            f"{group_label(part.name, lang)}\n{format_percent(part.wealth_pct, lang)}",
             ha="left",
             va="center",
             fontsize=LABEL_FONTSIZE,
@@ -75,7 +78,7 @@ def plot_bar(ax: Axes, parts: list[Group], total_pct: float) -> None:
     ax.text(
         0,
         total_pct * (1 + BAR_Y_MARGIN / 3),
-        f"{TOP_NAME}\n{total_pct:.1f}%",
+        f"{group_label(TOP_NAME, lang)}\n{format_percent(total_pct, lang)}",
         ha="center",
         va="bottom",
         fontsize=LABEL_FONTSIZE + 1,
@@ -108,7 +111,9 @@ def connect_slice_to_bar(
         )
 
 
-def plot_bar_of_donut(df: pl.DataFrame, year: int, out_path: Path) -> None:
+def plot_bar_of_donut(
+    df: pl.DataFrame, year: int, out_path: Path, lang: Lang = "en"
+) -> None:
     groups = build_groups(df, DONUT_GROUPS)
     parts = build_groups(df, TOP_PARTS)
     wealth = [g.wealth_pct for g in groups]
@@ -126,15 +131,15 @@ def plot_bar_of_donut(df: pl.DataFrame, year: int, out_path: Path) -> None:
         ax_donut,
         groups,
         wealth,
-        [f"{g.name}\n{g.wealth_pct:.1f}%" for g in groups],
-        "Share of\nwealth",
+        wealth_labels(groups, lang),
+        CENTRE_TEXT[lang]["wealth"],
         start_angle=half_slice,
         unlabelled=frozenset({TOP_NAME}),  # labelled above the bar
         # The bottom 50% slice borders the top 1% slice; lift its label above
         # the upper connector line.
         label_heights={"Bottom 50%": BOTTOM_LABEL_HEIGHT},
     )
-    plot_bar(ax_bar, parts, top.wealth_pct)
+    plot_bar(ax_bar, parts, top.wealth_pct, lang)
     connect_slice_to_bar(
         fig,
         ax_donut,
@@ -143,24 +148,26 @@ def plot_bar_of_donut(df: pl.DataFrame, year: int, out_path: Path) -> None:
         math.radians(half_slice),
         top.wealth_pct,
     )
-    finish_figure(fig, year, out_path)
+    finish_figure(fig, year, out_path, lang)
 
 
-def plot_wealth_donut_shaded(df: pl.DataFrame, year: int, out_path: Path) -> None:
-    """The same wealth donut without the bar: the top 1% arc in purple shades."""
+def plot_wealth_donut_shaded(
+    df: pl.DataFrame, year: int, out_path: Path, lang: Lang = "en"
+) -> None:
+    """The wealth donut without the bar: the top 1% arc in purple shades, on top."""
     groups = build_groups(df, (*DONUT_GROUPS[:-1], *TOP_PARTS))
     wealth = [g.wealth_pct for g in groups]
     top_total = sum(g.wealth_pct for g in groups[-len(TOP_PARTS) :])
 
     fig, ax = plt.subplots(figsize=(7.5, 6.2), facecolor=SURFACE)
     fig.subplots_adjust(left=0.02, right=0.98, top=0.88, bottom=0.06)
-    # Same orientation as the bar-of-donut chart: the top 1% arc centred on 3 o'clock.
+    # The top 1% arc (drawn first, clockwise) is centred on 12 o'clock.
     plot_donut(
         ax,
         groups,
         wealth,
-        [f"{g.name}\n{g.wealth_pct:.1f}%" for g in groups],
-        "Share of\nwealth",
-        start_angle=180.0 * top_total / sum(wealth),
+        wealth_labels(groups, lang),
+        CENTRE_TEXT[lang]["wealth"],
+        start_angle=90.0 + 180.0 * top_total / sum(wealth),
     )
-    finish_figure(fig, year, out_path)
+    finish_figure(fig, year, out_path, lang)

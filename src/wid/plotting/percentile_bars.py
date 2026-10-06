@@ -20,6 +20,13 @@ from matplotlib.ticker import FuncFormatter, MultipleLocator
 from matplotlib.transforms import blended_transform_factory, offset_copy
 
 from wid.plotting.bar_of_donut import DONUT_GROUPS, TOP_PARTS
+from wid.plotting.i18n import (
+    Lang,
+    format_eur,
+    format_pct,
+    format_pct_tick,
+    group_label,
+)
 from wid.plotting.style import (
     GRID,
     INK_SECONDARY,
@@ -98,8 +105,6 @@ ZOOM_LABEL_OFFSET = 8.0
 ZOOM_LINE_WIDTH = 0.6
 
 
-Lang = Literal["en", "de"]
-
 # User-facing text of the staircase figure (and the shared bar labels).
 TEXTS: dict[Lang, dict[str, str]] = {
     "en": {
@@ -127,49 +132,6 @@ TEXTS: dict[Lang, dict[str, str]] = {
         "footer": SOURCE_NOTE_DE,
     },
 }
-
-
-def german_number(text: str) -> str:
-    """Decimal comma: 99.2 -> 99,2."""
-    return text.replace(".", ",")
-
-
-def format_pct(fraction: float, lang: Lang) -> str:
-    """0.279 -> "27.9%" (en) or "27,9 %" (de)."""
-    if lang == "de":
-        return f"{german_number(f'{100 * fraction:.1f}')} %"
-    return f"{fraction:.1%}"
-
-
-def format_pct_tick(value: float, lang: Lang) -> str:
-    """Axis ticks in percent of adults: 99.2 -> "99.2%" (en) or "99,2 %" (de)."""
-    return f"{german_number(f'{value:g}')} %" if lang == "de" else f"{value:g}%"
-
-
-def format_eur(value: float, _pos: int | None = None, lang: Lang = "en") -> str:
-    """€8M, €1.2bn (en) or 8 Mio. €, 1,2 Mrd. € (de)."""
-    units = (
-        ((1e9, "Mrd. €"), (1e6, "Mio. €"), (1e3, "Tsd. €"))
-        if lang == "de"
-        else ((1e9, "bn"), (1e6, "M"), (1e3, "k"))
-    )
-    for scale, unit in units:
-        if abs(value) >= scale:
-            number = f"{value / scale:g}"
-            break
-    else:
-        number, unit = f"{value:g}", ("€" if lang == "de" else "")
-    if lang == "de":
-        return f"{german_number(number)} {unit}"
-    return f"€{number}{unit}"
-
-
-def group_label(name: str, lang: Lang) -> str:
-    """Group names in German: "Top 1–0.1%" -> "Top 1–0,1 %"."""
-    if lang == "en":
-        return name
-    name = name.replace("Bottom", "Untere").replace("Middle", "Mittlere")
-    return german_number(name).replace("%", " %")
 
 
 def font_size(scale: float) -> float:

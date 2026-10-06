@@ -100,7 +100,7 @@ make hooks       # install pre-commit hooks (ruff, ty, nbstripout)
 make data        # download Germany from WID and write data/*.csv
 make plots       # all charts -> output/
 make plot-balance YEAR=2018
-make plot-percentiles-staircase-de   # the staircase figure in German
+make plots-de     # German versions of the staircase and the donut charts
 make check       # all pre-commit hooks on all files
 ```
 
@@ -108,7 +108,8 @@ The commands are also available directly: `uv run fetch-data`, `uv run plot-line
 `uv run plot-donut`, `uv run plot-bar-donut`, `uv run plot-percentiles`,
 `uv run plot-percentiles-zoom`, `uv run plot-percentiles-staircase`,
 `uv run plot-wealth-donut`, `uv run plot-balance` (each takes `--year`,
-`--csv_path`, `--out_path`). The staircase also takes `--lang de` for a German version.
+`--csv_path`, `--out_path`). The staircase and donut commands also take `--lang de` for German versions
+(written with a `_de` suffix).
 
 Code layout: `src/wid/io` downloads and loads the data, `src/wid/plotting`
 draws the charts, `src/wid/cli.py` holds the command-line entry points.
