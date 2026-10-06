@@ -4,13 +4,20 @@ from pathlib import Path
 
 import fire
 
-from wid.io import DEFAULT_CSV, fetch_and_tidy, load_cumulative, wealth_by_percentile
+from wid.io import (
+    DEFAULT_CSV,
+    fetch_and_tidy,
+    load_cumulative,
+    wealth_by_percentile,
+    wealth_in_top_percent,
+)
 from wid.io.fetch import DEFAULT_RAW_DIR
 from wid.plotting import (
     plot_bar_of_donut,
     plot_donuts,
     plot_line_chart,
     plot_percentile_bars,
+    plot_percentile_bars_zoom,
     plot_wealth_donut_shaded,
 )
 
@@ -79,6 +86,21 @@ def plot_wealth_donut(
     )
 
 
+def plot_percentiles_zoom(
+    year: int = DEFAULT_YEAR,
+    csv_path: str = str(DEFAULT_CSV),
+    out_path: str = str(OUTPUT_DIR / "germany_wealth_percentiles_zoom.png"),
+) -> None:
+    """Percentile chart with a second panel zooming into the top 1%."""
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    plot_percentile_bars_zoom(
+        wealth_by_percentile(Path(csv_path), year),
+        wealth_in_top_percent(Path(csv_path), year),
+        year,
+        Path(out_path),
+    )
+
+
 def fetch_data_main() -> None:
     fire.Fire(fetch_data)
 
@@ -101,3 +123,7 @@ def plot_percentiles_main() -> None:
 
 def plot_wealth_donut_main() -> None:
     fire.Fire(plot_wealth_donut)
+
+
+def plot_percentiles_zoom_main() -> None:
+    fire.Fire(plot_percentiles_zoom)

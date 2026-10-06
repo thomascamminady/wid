@@ -1,6 +1,6 @@
 YEAR ?= 2024
 
-.PHONY: help install hooks data plot-line plot-donut plot-bar-donut plot-percentiles plot-wealth-donut plots format lint check clean
+.PHONY: help install hooks data plot-line plot-donut plot-bar-donut plot-percentiles plot-percentiles-zoom plot-wealth-donut plots format lint check clean
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -26,10 +26,13 @@ plot-bar-donut: ## Wealth donut with the top 1% split up in a bar (YEAR=2024)
 plot-percentiles: ## Average wealth in each percentile of adults (YEAR=2024)
 	uv run plot-percentiles --year $(YEAR)
 
+plot-percentiles-zoom: ## Percentile chart plus a zoom into the top 1% (YEAR=2024)
+	uv run plot-percentiles-zoom --year $(YEAR)
+
 plot-wealth-donut: ## Wealth donut with the top 1% arc in purple shades (YEAR=2024)
 	uv run plot-wealth-donut --year $(YEAR)
 
-plots: plot-line plot-donut plot-bar-donut plot-percentiles plot-wealth-donut ## All charts
+plots: plot-line plot-donut plot-bar-donut plot-percentiles plot-percentiles-zoom plot-wealth-donut ## All charts
 
 format: ## Format with ruff
 	uv run ruff format src notebooks

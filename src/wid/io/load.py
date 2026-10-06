@@ -53,3 +53,38 @@ def wealth_by_percentile(
         .with_columns(share=pl.col("avg_eur") / pl.col("avg_eur").sum())
         .sort("pct_lo")
     )
+
+
+def wealth_in_top_percent(
+    csv_path: Path = DEFAULT_CSV, year: int = 2024, step: float = 0.01
+) -> pl.DataFrame:
+    """Average wealth and share of all wealth for bins inside the top 1% (p99-p100).
+
+    WID bins are 0.1% wide up to p99.9, 0.01% up to p99.99 and 0.001% above.
+    Bins narrower than `step` are merged into `step`-wide bins; wider bins stay
+    as they are, since WID has no finer data there. Columns: lo, hi, avg_eur, share.
+    """
+    width = pl.col("hi") - pl.col("lo")
+    narrow = width < step
+    # round() before floor() so that e.g. 99.99 / 0.01 = 9998.9999... lands on 9999.
+    merged_lo = ((pl.col("lo") / step).round(6).floor() * step).round(6)
+    bins = load_gpercentiles(csv_path, year).with_columns(
+        wealth=width * pl.col("avg_eur")
+    )
+    return (
+        bins.filter(pl.col("lo") >= 99.0)
+        .group_by(
+            lo=pl.when(narrow).then(merged_lo).otherwise(pl.col("lo")),
+            hi=pl.when(narrow)
+            .then((merged_lo + step).round(6))
+            .otherwise(pl.col("hi")),
+        )
+        .agg(pl.col("wealth").sum(), width=width.sum())
+        .select(
+            "lo",
+            "hi",
+            avg_eur=pl.col("wealth") / pl.col("width"),
+            share=pl.col("wealth") / bins["wealth"].sum(),
+        )
+        .sort("lo")
+    )

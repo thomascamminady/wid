@@ -23,6 +23,7 @@ plot-line = "wid.cli:plot_line_main"
 plot-donut = "wid.cli:plot_donut_main"
 plot-bar-donut = "wid.cli:plot_bar_donut_main"
 plot-percentiles = "wid.cli:plot_percentiles_main"
+plot-percentiles-zoom = "wid.cli:plot_percentiles_zoom_main"
 plot-wealth-donut = "wid.cli:plot_wealth_donut_main"
 
 [build-system]

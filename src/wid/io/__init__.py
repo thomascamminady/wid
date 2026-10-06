@@ -7,6 +7,7 @@ from wid.io.load import (
     load_cumulative,
     load_gpercentiles,
     wealth_by_percentile,
+    wealth_in_top_percent,
 )
 
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     "load_gpercentiles",
     "tidy_gpercentiles",
     "wealth_by_percentile",
+    "wealth_in_top_percent",
 ]
