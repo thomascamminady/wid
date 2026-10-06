@@ -17,8 +17,13 @@ from wid.plotting.style import (
     SURFACE,
 )
 
-# Percentiles (pct_lo) whose bars get a value label.
-ANNOTATE_PCT: dict[int, str] = {50: "Median (p50)", 90: "p90", 99: "Top 1%"}
+# Percentiles (pct_lo) whose bars get a value label. Each bar is one percentile
+# (1% of adults), so the labels name the slice, not a cumulative group.
+ANNOTATE_PCT: dict[int, str] = {
+    50: "p50–p51 (median)",
+    90: "p90–p91",
+    99: "p99–p100 (top 1%)",
+}
 
 
 def group_color(pct_lo: int) -> str:
@@ -66,7 +71,7 @@ def plot_percentile_bars(df_pct: pl.DataFrame, year: int, out_path: Path) -> Non
     for p, name in ANNOTATE_PCT.items():
         i = pct.index(p)
         ax.annotate(
-            f"{name}\n{format_eur_rounded(avg[i])} · {share[i]:.1%} of wealth",
+            f"{name}\n{format_eur_rounded(avg[i])} avg · {share[i]:.1%} of all wealth",
             xy=(p + 0.5, max(avg[i], 0)),
             xytext=(-6, 8),
             textcoords="offset points",
