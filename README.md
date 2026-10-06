@@ -14,7 +14,7 @@ wealth. The unit is equal-split adults aged 20+.
 make install     # uv sync
 make hooks       # install pre-commit hooks (ruff, ty, nbstripout)
 make data        # fetch WID_data_DE.csv from the bulk zip -> data/germany_wealth_gpercentiles_wid.csv
-make plots       # line chart, donuts, and donuts with zoom panels -> output/
+make plots       # line chart and donuts -> output/
 make plot-donut YEAR=2018
 make check       # all pre-commit hooks on all files
 ```
@@ -23,7 +23,7 @@ make check       # all pre-commit hooks on all files
 `wid.plotting`.
 
 The commands are also available directly: `uv run fetch-data`, `uv run plot-line`,
-`uv run plot-donut`, `uv run plot-donut-zoom` (each takes `--year`, `--csv_path`, `--out_path`).
+`uv run plot-donut` (each takes `--year`, `--csv_path`, `--out_path`).
 
 ## Data
 
