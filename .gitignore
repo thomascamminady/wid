@@ -14,3 +14,6 @@ wheels/
 
 # Raw WID download (recreate with `make data`)
 data/raw/
+
+# macOS
+.DS_Store

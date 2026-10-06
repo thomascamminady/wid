@@ -5,6 +5,8 @@ Author: Thomas Camminady
 Wealth inequality in Germany at fine resolution, from the
 [World Inequality Database](https://wid.world) (WID.world).
 
+![Average net wealth per adult in Germany, 2024, zooming into the richest 0.001%](output/germany_wealth_percentiles_staircase.png)
+
 WID publishes 127 "g-percentile" bins of net personal wealth: 1% steps up to
 p99, then 0.1%, 0.01% and 0.001% steps, down to the top 0.001% (about 700
 adults). Each bin has its wealth share, its entry threshold and its average
@@ -20,9 +22,6 @@ make plots       # all charts -> output/
 make plot-donut YEAR=2018
 make check       # all pre-commit hooks on all files
 ```
-
-`notebooks/main.ipynb` loads the data with `wid.io` and draws the charts with
-`wid.plotting`.
 
 The commands are also available directly: `uv run fetch-data`, `uv run plot-line`,
 `uv run plot-donut`, `uv run plot-bar-donut`, `uv run plot-percentiles`, `uv run plot-percentiles-zoom`, `uv run plot-percentiles-staircase`, `uv run plot-wealth-donut` (each takes `--year`, `--csv_path`, `--out_path`).

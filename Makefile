@@ -38,10 +38,10 @@ plot-wealth-donut: ## Wealth donut with the top 1% arc in purple shades (YEAR=20
 plots: plot-line plot-donut plot-bar-donut plot-percentiles plot-percentiles-zoom plot-percentiles-staircase plot-wealth-donut ## All charts
 
 format: ## Format with ruff
-	uv run ruff format src notebooks
+	uv run ruff format src
 
 lint: ## Lint with ruff and type-check with ty
-	uv run ruff check src notebooks
+	uv run ruff check src
 	uv run ty check
 
 check: ## Run every pre-commit hook on all files
