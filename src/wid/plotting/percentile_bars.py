@@ -180,8 +180,8 @@ def plot_percentile_bars_zoom(
         df_top,
         TOP_PERCENT_GROUPS,
         tick_step=0.1,
-        xlabel="The richest 1% of adults, sorted from poorest to richest. Bars are "
-        "0.1% of adults wide up to 99.9%, then 0.01%.",
+        xlabel="The richest 1% of adults. Bars are 0.1% of adults wide up to 99.9%, "
+        "then 0.01%.",
     )
     fig.suptitle(
         f"Germany {year}: average wealth in each percentile",
@@ -189,7 +189,7 @@ def plot_percentile_bars_zoom(
         fontsize=16,
     )
     ax_top.set_title(
-        "Zoom into the top 1% (the purple bar above)",
+        "Zoom into the top 1%",
         color=INK_SECONDARY,
         fontsize=12,
         pad=10,
