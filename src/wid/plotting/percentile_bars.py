@@ -31,6 +31,11 @@ class BarGroup:
     x0: float
     x1: float
     color: str
+    text_color: str | None = None  # for bar colours too light to read as text
+
+    @property
+    def label_color(self) -> str:
+        return self.text_color or self.color
 
 
 ALL_ADULTS_GROUPS: tuple[BarGroup, ...] = tuple(
@@ -39,7 +44,8 @@ ALL_ADULTS_GROUPS: tuple[BarGroup, ...] = tuple(
 )
 # Inside the top 1%: the purple shades of the bar-of-donut chart, lightest first.
 TOP_PERCENT_GROUPS: tuple[BarGroup, ...] = (
-    BarGroup("Top 1–0.1%", 99.0, 99.9, TOP_PARTS[0].color),
+    # Same hue, darker (OKLCH L 0.56): 4.7:1 contrast instead of 2.3:1.
+    BarGroup("Top 1–0.1%", 99.0, 99.9, TOP_PARTS[0].color, text_color="#6c69b8"),
     BarGroup("Top 0.1–0.01%", 99.9, 99.99, TOP_PARTS[1].color),
     BarGroup("Top 0.01%", 99.99, 100.0, TOP_PARTS[-1].color),
 )
@@ -54,7 +60,7 @@ TOP_BASIS_POINT_GROUPS: tuple[BarGroup, ...] = (
 CENTRED_LABEL_MIN_FRACTION = 0.2
 NARROW_LABEL_INSET = 0.006  # fraction of the x range; keeps text off the next bar
 LABEL_LIFT = 0.04  # fraction of the y range between a group's tallest bar and label
-Y_HEADROOM = 1.25  # y range = tallest bar * this, room for the top label
+Y_HEADROOM = 1.08  # y range = tallest bar * this
 
 # Staircase layout (figure fractions): wide panels, each stepping right by a
 # fixed amount. That keeps the next panel left of centre under the zoomed bar
@@ -70,6 +76,7 @@ STAIRCASE_BOTTOMS: tuple[float, ...] = (0.71, 0.395, 0.08)
 # right-hand line's midpoint (points).
 ZOOM_LINE_START_Y = -0.12
 ZOOM_LABEL_OFFSET = 8.0
+ZOOM_LINE_WIDTH = 0.6
 
 
 def format_eur(value: float, _pos: int | None = None) -> str:
@@ -125,22 +132,35 @@ def draw_bars(
     # One label per group with the share of all wealth the whole group holds.
     for group in groups:
         idx = [i for i, x in enumerate(lo) if group.x0 <= x < group.x1]
-        y = max(max(avg[i] for i in idx), 0.0) + lift
+        text = f"{group.name}\n{sum(share[i] for i in idx):.1%} of all wealth"
+        tallest = max(max(avg[i] for i in idx), 0.0)
+        if len(idx) == 1:
+            # A single bar: label to its left, top-aligned with the bar.
+            ax.text(
+                group.x0 - NARROW_LABEL_INSET * x_range,
+                tallest,
+                text,
+                ha="right",
+                va="top",
+                fontsize=LABEL_FONTSIZE,
+                color=group.label_color,
+            )
+            continue
+        # Several bars: a bracket over them with the label above it.
+        y = tallest + lift
+        pad = 0.003 * x_range
+        ax.plot([group.x0 + pad, group.x1 - pad], [y, y], color=group.color, lw=1.2)
         wide = (group.x1 - group.x0) / x_range >= CENTRED_LABEL_MIN_FRACTION
-        if len(idx) > 1:
-            # Bracket over the group's bars.
-            pad = 0.003 * x_range
-            ax.plot([group.x0 + pad, group.x1 - pad], [y, y], color=group.color, lw=1.2)
         ax.text(
             (group.x0 + group.x1) / 2
             if wide
             else group.x1 - NARROW_LABEL_INSET * x_range,
             y + lift / 2,
-            f"{group.name}\n{sum(share[i] for i in idx):.1%} of all wealth",
+            text,
             ha="center" if wide else "right",
             va="bottom",
             fontsize=LABEL_FONTSIZE,
-            color=group.color,
+            color=group.label_color,
         )
 
     ax.set_xlim(x_min, x_max)
@@ -148,6 +168,10 @@ def draw_bars(
     ax.xaxis.set_major_locator(MultipleLocator(tick_step))
     ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}%"))
     ax.yaxis.set_major_formatter(FuncFormatter(format_eur))
+    # No gridline above the tallest bar. Keep ticks inside the current limits
+    # too: set_yticks would otherwise stretch the axis to an out-of-view tick.
+    y_bottom = ax.get_ylim()[0]
+    ax.set_yticks([t for t in ax.get_yticks() if y_bottom <= t <= max(avg)])
     ax.set_xlabel(xlabel, color=INK_SECONDARY, loc=xlabel_loc)
     ax.set_ylabel("Average net wealth per adult", color=INK_SECONDARY)
 
@@ -282,11 +306,13 @@ def link_zoom(
                 xyB=(x, y_top),
                 coordsB=ax_to.transData,
                 color=INK_SECONDARY,
-                linewidth=0.8,
+                linewidth=ZOOM_LINE_WIDTH,
             )
         )
 
-    # Label just right of the right-hand line's midpoint, kept horizontal.
+    # Label just right of the right-hand line's midpoint, kept horizontal. Its
+    # bottom-left corner sits above the line, and the line falls away to the
+    # right, so the text never touches it.
     start_px = below_axis.transform(start)
     end_px = ax_to.transData.transform((x1, y_top))
     mid = fig.transFigure.inverted().transform((start_px + end_px) / 2)
@@ -295,11 +321,15 @@ def link_zoom(
         mid[1],
         label,
         ha="left",
-        va="center",
+        va="bottom",
         fontsize=LABEL_FONTSIZE + 1,
         color=INK_SECONDARY,
         transform=offset_copy(
-            fig.transFigure, fig=fig, x=ZOOM_LABEL_OFFSET, y=0.0, units="points"
+            fig.transFigure,
+            fig=fig,
+            x=ZOOM_LABEL_OFFSET,
+            y=ZOOM_LABEL_OFFSET / 2,
+            units="points",
         ),
     )
 

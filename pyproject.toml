@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Wealth inequality in Germany from WID.world g-percentile data"
 readme = "README.md"
 authors = [
-    { name = "thomas", email = "0milieux_member@icloud.com" }
+    { name = "Thomas Camminady", email = "0milieux_member@icloud.com" }
 ]
 requires-python = ">=3.13"
 dependencies = [

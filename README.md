@@ -1,5 +1,7 @@
 # wid
 
+Author: Thomas Camminady
+
 Wealth inequality in Germany at fine resolution, from the
 [World Inequality Database](https://wid.world) (WID.world).
 
