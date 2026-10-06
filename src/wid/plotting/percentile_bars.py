@@ -272,7 +272,7 @@ def plot_percentile_bars(df_pct: pl.DataFrame, year: int, out_path: Path) -> Non
         fontsize=font_size(TITLE_SCALE),
         pad=12,
     )
-    fig.tight_layout(rect=(0, 0.03, 1, 1))
+    fig.tight_layout(rect=(0, 0.07, 1, 1))  # room for the footer
     save(fig, out_path)
 
 
@@ -319,7 +319,7 @@ def plot_percentile_bars_zoom(
         ax.set_title(
             title, color=INK_SECONDARY, fontsize=font_size(PANEL_TITLE_SCALE), pad=10
         )
-    fig.tight_layout(rect=(0, 0.015, 1, 1), h_pad=3)
+    fig.tight_layout(rect=(0, 0.035, 1, 1), h_pad=3)  # room for the footer
     save(fig, out_path)
 
 

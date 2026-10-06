@@ -6,6 +6,7 @@ the poorest half's circle has 50,000 times the area of the richest 0.001%'s.
 """
 
 import math
+import textwrap
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -13,7 +14,7 @@ import polars as pl
 from matplotlib.patches import Circle, Polygon
 
 from wid.plotting.donut_chart import MAGENTA, VIOLET
-from wid.plotting.style import INK_SECONDARY, SOURCE_NOTE, SURFACE
+from wid.plotting.style import INK_SECONDARY, SOURCE_NOTE, SURFACE, WEALTH_NOTE
 
 RICH_PCT = 0.001  # richest x% of adults
 POOR_PCT = 50.0  # poorest x% of adults
@@ -35,6 +36,7 @@ DPI = 130
 TITLE_SIZE = 40
 TEXT_SIZE = 28
 FOOTER_SIZE = 18
+FOOTER_WRAP = 64  # characters per line of the wealth definition
 BEAM_WIDTH = 5.0
 LINE_WIDTH = 2.5
 SCALE_GREY = "#8c8a85"  # beam and wedge: lighter than the text grey
@@ -138,7 +140,10 @@ def plot_balance(bins: pl.DataFrame, adults: int, year: int, out_path: Path) -> 
     ax.text(
         x_max,
         -FULCRUM_HEIGHT,
-        SOURCE_NOTE.replace(" · ", "\n"),
+        # The wealth definition is wrapped so the footer stays right of the wedge.
+        textwrap.fill(WEALTH_NOTE, FOOTER_WRAP)
+        + "\n"
+        + SOURCE_NOTE.removeprefix(WEALTH_NOTE + "\n").replace(" · ", "\n"),
         ha="right",
         va="bottom",
         fontsize=FOOTER_SIZE,
