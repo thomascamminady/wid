@@ -7,8 +7,10 @@ is the wealth it holds. `plot_percentile_bars` shows the 100 percentiles;
 panel centred under the bar it enlarges and joined to it by zoom lines.
 """
 
+import math
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import matplotlib.pyplot as plt
 import polars as pl
@@ -16,6 +18,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.patches import ConnectionPatch, Rectangle
 from matplotlib.ticker import FuncFormatter, MultipleLocator
+from matplotlib.transforms import blended_transform_factory, offset_copy
 
 from wid.plotting.bar_of_donut import DONUT_GROUPS, TOP_PARTS
 from wid.plotting.style import GRID, INK_SECONDARY, LABEL_FONTSIZE, SOURCE_NOTE, SURFACE
@@ -61,9 +64,10 @@ STAIRCASE_PANEL_WIDTH = 0.45
 STAIRCASE_PANEL_HEIGHT = 0.22
 STAIRCASE_FIRST_LEFT = 0.07
 STAIRCASE_BOTTOMS: tuple[float, ...] = (0.71, 0.395, 0.08)
-# Text between staircase panels gets an opaque background, so the zoom lines
-# (drawn behind the axes) pass behind it instead of through it.
-TEXT_BACKGROUND = {"facecolor": SURFACE, "edgecolor": "none", "pad": 1.5}
+# Zoom lines start this far below the x axis (axes fraction), i.e. just under
+# the "100%" tick label, and their labels sit this far off the line (points).
+ZOOM_LINE_START_Y = -0.12
+ZOOM_LABEL_OFFSET = 4.0
 
 
 def format_eur(value: float, _pos: int | None = None) -> str:
@@ -89,11 +93,12 @@ def draw_bars(
     groups: tuple[BarGroup, ...],
     tick_step: float,
     xlabel: str,
-    text_background: bool = False,
+    xlabel_loc: Literal["left", "center", "right"] = "center",
+    clip_at_zero: bool = False,
 ) -> None:
     """Bars from `bars` (columns lo, hi, avg_eur, share), one share label per group.
 
-    `text_background` gives tick labels and the x label an opaque background.
+    `clip_at_zero` starts the y axis at €0, hiding the (small) negative bars.
     """
     lo, hi = bars["lo"].to_list(), bars["hi"].to_list()
     avg, share = bars["avg_eur"].to_list(), bars["share"].to_list()
@@ -137,20 +142,11 @@ def draw_bars(
         )
 
     ax.set_xlim(x_min, x_max)
-    ax.set_ylim(top=y_top)
+    ax.set_ylim(bottom=0.0 if clip_at_zero else None, top=y_top)
     ax.xaxis.set_major_locator(MultipleLocator(tick_step))
-    if text_background:
-        # Fixed ticks keep their Text objects, so the backgrounds stick.
-        n_ticks = round(x_range / tick_step)
-        ticks = [round(x_min + k * tick_step, 6) for k in range(n_ticks + 1)]
-        ax.set_xticks(ticks, [f"{t:g}%" for t in ticks])
-        for label in ax.get_xticklabels():
-            label.set_bbox(TEXT_BACKGROUND)
     ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}%"))
     ax.yaxis.set_major_formatter(FuncFormatter(format_eur))
-    ax.set_xlabel(
-        xlabel, color=INK_SECONDARY, bbox=TEXT_BACKGROUND if text_background else None
-    )
+    ax.set_xlabel(xlabel, color=INK_SECONDARY, loc=xlabel_loc)
     ax.set_ylabel("Average net wealth per adult", color=INK_SECONDARY)
 
     ax.grid(True, axis="y", color=GRID, linewidth=0.8, zorder=0)
@@ -246,13 +242,19 @@ def plot_percentile_bars_zoom(
 
 
 def link_zoom(
-    fig: Figure, ax_from: Axes, ax_to: Axes, x0: float, x1: float, height: float
+    fig: Figure,
+    ax_from: Axes,
+    ax_to: Axes,
+    x0: float,
+    x1: float,
+    height: float,
+    label: str,
 ) -> None:
-    """Box the bar(s) x0..x1 in `ax_from` and draw lines to the corners of `ax_to`.
+    """Box the bar(s) x0..x1 in `ax_from` and draw zoom lines down to `ax_to`.
 
-    The lines run from the box's bottom corners to the top corners of `ax_to`
-    (which spans exactly x0..x1). They sit behind the axes, so each opaque panel
-    hides the stretch inside it and only the part in the gap shows.
+    The lines start just under the x axis of `ax_from` (below the "100%" tick
+    label) and end at the top corners of `ax_to`, which spans exactly x0..x1.
+    `label` is written along the right-hand line.
     """
     ax_from.add_patch(
         Rectangle(
@@ -265,19 +267,45 @@ def link_zoom(
             zorder=5,
         )
     )
+    below_axis = blended_transform_factory(ax_from.transData, ax_from.transAxes)
     y_top = ax_to.get_ylim()[1]
     for x in (x0, x1):
         fig.add_artist(
             ConnectionPatch(
-                xyA=(x, 0.0),
-                coordsA=ax_from.transData,
+                xyA=(x, ZOOM_LINE_START_Y),
+                coordsA=below_axis,
                 xyB=(x, y_top),
                 coordsB=ax_to.transData,
                 color=INK_SECONDARY,
                 linewidth=0.8,
-                zorder=-1,
             )
         )
+
+    # Label along the right-hand line: rotate to its angle (display space, so
+    # it is independent of the axes' data scales) and nudge it off the line.
+    start = below_axis.transform((x1, ZOOM_LINE_START_Y))
+    end = ax_to.transData.transform((x1, y_top))
+    angle = math.degrees(math.atan2(end[1] - start[1], end[0] - start[0]))
+    mid = fig.transFigure.inverted().transform((start + end) / 2)
+    normal = math.radians(angle + 90)
+    fig.text(
+        mid[0],
+        mid[1],
+        label,
+        rotation=angle,
+        rotation_mode="anchor",
+        ha="center",
+        va="bottom",
+        fontsize=LABEL_FONTSIZE + 1,
+        color=INK_SECONDARY,
+        transform=offset_copy(
+            fig.transFigure,
+            fig=fig,
+            x=ZOOM_LABEL_OFFSET * math.cos(normal),
+            y=ZOOM_LABEL_OFFSET * math.sin(normal),
+            units="points",
+        ),
+    )
 
 
 def plot_percentile_bars_staircase(
@@ -297,31 +325,32 @@ def plot_percentile_bars_staircase(
         fig.add_axes((left, bottom, STAIRCASE_PANEL_WIDTH, STAIRCASE_PANEL_HEIGHT))
         for left, bottom in zip(lefts, STAIRCASE_BOTTOMS, strict=True)
     )
+    # x labels sit left so the zoom lines, which leave from under "100%" on the
+    # right, never cross them.
     draw_bars(
         ax_all,
         df_pct.rename({"pct_lo": "lo", "pct_hi": "hi"}),
         ALL_ADULTS_GROUPS,
         tick_step=20,
-        xlabel="All adults, sorted from poorest (left) to richest (right).\n"
-        "Each bar is 1% of adults.",
-        text_background=True,
+        xlabel="All adults, sorted from poorest (left) to richest (right)",
+        xlabel_loc="left",
+        clip_at_zero=True,
     )
     draw_bars(
         ax_top1,
         df_top1,
         TOP_PERCENT_GROUPS,
         tick_step=0.2,
-        xlabel="The richest 1% of adults. Bars are 0.1% of adults wide\n"
-        "up to 99.9%, then 0.01%.",
-        text_background=True,
+        xlabel="The richest 1% of adults",
+        xlabel_loc="left",
     )
     draw_bars(
         ax_top001,
         df_top001,
         TOP_BASIS_POINT_GROUPS,
         tick_step=0.002,
-        xlabel="The richest 0.01% of adults.\nEach bar is 0.001% of adults.",
-        text_background=True,
+        xlabel="The richest 0.01% of adults",
+        xlabel_loc="left",
     )
     fig.suptitle(
         f"Germany {year}: average wealth in each percentile",
@@ -329,13 +358,22 @@ def plot_percentile_bars_staircase(
         fontsize=16,
         y=0.97,
     )
-    for ax, title in (
-        (ax_top1, "Zoom into the top 1%"),
-        (ax_top001, "Zoom into the top 0.01%"),
-    ):
-        ax.set_title(
-            title, color=INK_SECONDARY, fontsize=12, pad=10, bbox=TEXT_BACKGROUND
-        )
-    link_zoom(fig, ax_all, ax_top1, 99.0, 100.0, df_pct["avg_eur"][-1])
-    link_zoom(fig, ax_top1, ax_top001, 99.99, 100.0, df_top1["avg_eur"][-1])
+    link_zoom(
+        fig,
+        ax_all,
+        ax_top1,
+        99.0,
+        100.0,
+        df_pct["avg_eur"][-1],
+        "Zoom into the top 1%",
+    )
+    link_zoom(
+        fig,
+        ax_top1,
+        ax_top001,
+        99.99,
+        100.0,
+        df_top1["avg_eur"][-1],
+        "Zoom into the top 0.01%",
+    )
     save(fig, out_path)
