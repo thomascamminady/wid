@@ -6,7 +6,7 @@ import fire
 
 from wid.io import DEFAULT_CSV, fetch_and_tidy, load_cumulative
 from wid.io.fetch import DEFAULT_RAW_DIR
-from wid.plotting import plot_donuts, plot_line_chart
+from wid.plotting import plot_bar_of_donut, plot_donuts, plot_line_chart
 
 DEFAULT_YEAR = 2024
 OUTPUT_DIR = Path("output")
@@ -39,6 +39,16 @@ def plot_donut(
     plot_donuts(load_cumulative(Path(csv_path), year), year, Path(out_path))
 
 
+def plot_bar_donut(
+    year: int = DEFAULT_YEAR,
+    csv_path: str = str(DEFAULT_CSV),
+    out_path: str = str(OUTPUT_DIR / "germany_wealth_bar_of_donut.png"),
+) -> None:
+    """Wealth donut with the top 1% as one slice, split up in a bar beside it."""
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    plot_bar_of_donut(load_cumulative(Path(csv_path), year), year, Path(out_path))
+
+
 def fetch_data_main() -> None:
     fire.Fire(fetch_data)
 
@@ -49,3 +59,7 @@ def plot_line_main() -> None:
 
 def plot_donut_main() -> None:
     fire.Fire(plot_donut)
+
+
+def plot_bar_donut_main() -> None:
+    fire.Fire(plot_bar_donut)

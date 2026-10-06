@@ -157,18 +157,27 @@ def plot_donut(
     labels: list[str],
     centre: str,
     start_angle: float = DONUT_START_ANGLE,
-) -> None:
-    """Draw one donut with a leader-lined label per group (poorest group first)."""
+    unlabelled: frozenset[str] = frozenset(),
+    label_heights: dict[str, float] | None = None,
+) -> list[float]:
+    """Draw one donut with a leader-lined label per group (poorest group first).
+
+    `label_heights` pins a group's label to a height (data units) instead of its
+    wedge's. Returns the wedge mid-angles in radians.
+    """
     mids = draw_ring(ax, groups, values, start_angle)
     ax.text(0, 0, centre, ha="center", va="center", fontsize=13, color=INK_SECONDARY)
 
-    shown = range(len(groups))
-    n_lines = max(label.count("\n") + 1 for label in labels)
+    shown = [i for i, g in enumerate(groups) if g.name not in unlabelled]
+    n_lines = max(labels[i].count("\n") + 1 for i in shown)
     min_gap = n_lines * DONUT_LABEL_LINE_HEIGHT + DONUT_LABEL_PADDING
 
     # Spread labels per side so thin neighbouring wedges do not stack their text.
     on_right = {i: math.cos(mids[i]) >= 0 for i in shown}
     label_y = {i: DONUT_LABEL_RADIUS * math.sin(mids[i]) for i in shown}
+    for i in shown:
+        if label_heights and groups[i].name in label_heights:
+            label_y[i] = label_heights[groups[i].name]
     for side in (True, False):
         idx = [i for i in shown if on_right[i] == side]
         spread = spread_labels([label_y[i] for i in idx], min_gap, DONUT_LABEL_Y_MAX)
@@ -202,6 +211,7 @@ def plot_donut(
     ax.set_xlim(-DONUT_AXIS_HALF_WIDTH, DONUT_AXIS_HALF_WIDTH)
     ax.set_ylim(*DONUT_Y_LIMITS)
     ax.set_aspect("equal", adjustable="box")  # pie() switches to "datalim"
+    return mids
 
 
 def plot_wealth_donut(ax: Axes, groups: list[Group]) -> None:
