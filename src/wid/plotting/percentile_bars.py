@@ -20,7 +20,7 @@ from matplotlib.ticker import FuncFormatter, MultipleLocator
 from matplotlib.transforms import blended_transform_factory, offset_copy
 
 from wid.plotting.bar_of_donut import DONUT_GROUPS, TOP_PARTS
-from wid.plotting.style import GRID, INK_SECONDARY, LABEL_FONTSIZE, SOURCE_NOTE, SURFACE
+from wid.plotting.style import GRID, INK_SECONDARY, SOURCE_NOTE, SURFACE
 
 
 @dataclass(frozen=True)
@@ -62,6 +62,18 @@ NARROW_LABEL_INSET = 0.006  # fraction of the x range; keeps text off the next b
 LABEL_LIFT = 0.04  # fraction of the y range between a group's tallest bar and label
 Y_HEADROOM = 1.08  # y range = tallest bar * this
 
+# Font sizes relative to matplotlib's base size (rcParams["font.size"], 10 by
+# default), so a figure can scale all its text with one rc setting.
+LABEL_SCALE = 0.9
+ZOOM_LABEL_SCALE = 1.0
+PANEL_TITLE_SCALE = 1.2
+TITLE_SCALE = 1.6
+FOOTER_SCALE = 0.8
+STAIRCASE_FONT_SIZE = 12.0  # 20% above the default, for phone screens
+MULTI_PANEL_TITLE = (
+    "average net wealth per adult, from the poorest to the richest 0.001%"
+)
+
 # Staircase layout (figure fractions): wide panels, each stepping right by a
 # fixed amount. That keeps the next panel left of centre under the zoomed bar
 # (which sits at the right edge), so the chart uses the width with little
@@ -87,6 +99,10 @@ def format_eur(value: float, _pos: int | None = None) -> str:
     if abs(value) >= 1e3:
         return f"€{value / 1e3:g}k"
     return f"€{value:g}"
+
+
+def font_size(scale: float) -> float:
+    return plt.rcParams["font.size"] * scale
 
 
 def group_of(groups: tuple[BarGroup, ...], x: float) -> BarGroup:
@@ -142,7 +158,7 @@ def draw_bars(
                 text,
                 ha="right",
                 va="top",
-                fontsize=LABEL_FONTSIZE,
+                fontsize=font_size(LABEL_SCALE),
                 color=group.label_color,
             )
             continue
@@ -159,7 +175,7 @@ def draw_bars(
             text,
             ha="center" if wide else "right",
             va="bottom",
-            fontsize=LABEL_FONTSIZE,
+            fontsize=font_size(LABEL_SCALE),
             color=group.label_color,
         )
 
@@ -199,7 +215,7 @@ def save(fig: Figure, out_path: Path) -> None:
         0.99,
         0.005,
         SOURCE_NOTE,
-        fontsize=8,
+        fontsize=font_size(FOOTER_SCALE),
         ha="right",
         va="bottom",
         color=INK_SECONDARY,
@@ -215,7 +231,7 @@ def plot_percentile_bars(df_pct: pl.DataFrame, year: int, out_path: Path) -> Non
     ax.set_title(
         f"Germany {year}: average wealth in each percentile",
         color=INK_SECONDARY,
-        fontsize=16,
+        fontsize=font_size(TITLE_SCALE),
         pad=12,
     )
     fig.tight_layout(rect=(0, 0.03, 1, 1))
@@ -254,15 +270,17 @@ def plot_percentile_bars_zoom(
         xlabel="The richest 0.01% of adults. Each bar is 0.001% of adults.",
     )
     fig.suptitle(
-        f"Germany {year}: average wealth in each percentile",
+        f"Germany {year}: {MULTI_PANEL_TITLE}",
         color=INK_SECONDARY,
-        fontsize=16,
+        fontsize=font_size(TITLE_SCALE),
     )
     for ax, title in (
         (ax_top1, "Zoom into the top 1%"),
         (ax_top001, "Zoom into the top 0.01%"),
     ):
-        ax.set_title(title, color=INK_SECONDARY, fontsize=12, pad=10)
+        ax.set_title(
+            title, color=INK_SECONDARY, fontsize=font_size(PANEL_TITLE_SCALE), pad=10
+        )
     fig.tight_layout(rect=(0, 0.015, 1, 1), h_pad=3)
     save(fig, out_path)
 
@@ -322,7 +340,7 @@ def link_zoom(
         label,
         ha="left",
         va="bottom",
-        fontsize=LABEL_FONTSIZE + 1,
+        fontsize=font_size(ZOOM_LABEL_SCALE),
         color=INK_SECONDARY,
         transform=offset_copy(
             fig.transFigure,
@@ -341,7 +359,23 @@ def plot_percentile_bars_staircase(
     year: int,
     out_path: Path,
 ) -> None:
-    """The three panels of `plot_percentile_bars_zoom` as a staircase of zooms."""
+    """The three panels of `plot_percentile_bars_zoom` as a staircase of zooms.
+
+    All text is drawn 20% larger than in the other charts, for phone screens.
+    """
+    # Saving happens inside the context too: tick labels pick up their size
+    # when they are drawn.
+    with plt.rc_context({"font.size": STAIRCASE_FONT_SIZE}):
+        _plot_staircase(df_pct, df_top1, df_top001, year, out_path)
+
+
+def _plot_staircase(
+    df_pct: pl.DataFrame,
+    df_top1: pl.DataFrame,
+    df_top001: pl.DataFrame,
+    year: int,
+    out_path: Path,
+) -> None:
     fig = plt.figure(figsize=STAIRCASE_FIGSIZE, facecolor=SURFACE)
     ax_all, ax_top1, ax_top001 = (
         fig.add_axes((left, bottom, STAIRCASE_PANEL_WIDTH, STAIRCASE_PANEL_HEIGHT))
@@ -375,9 +409,9 @@ def plot_percentile_bars_staircase(
         xlabel_loc="left",
     )
     fig.suptitle(
-        f"Germany {year}: average wealth in each percentile",
+        f"Germany {year}: {MULTI_PANEL_TITLE}",
         color=INK_SECONDARY,
-        fontsize=16,
+        fontsize=font_size(TITLE_SCALE),
         y=0.97,
     )
     link_zoom(
