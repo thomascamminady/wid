@@ -24,7 +24,6 @@ BEAM_HALF_LENGTH = 1.75
 FULCRUM_HALF_WIDTH = 0.28
 FULCRUM_HEIGHT = 0.7
 BEAM_CLEARANCE = 0.006  # circles rest on top of the beam's line width
-RICH_RING_RADIUS = 0.06  # marks the tiny circle so it can be found
 
 # The drawing is large so that the small circle (1/224 of the big one's radius)
 # stays visible; text and line widths scale with it.
@@ -92,26 +91,16 @@ def plot_balance(bins: pl.DataFrame, adults: int, year: int, out_path: Path) -> 
     poor_centre = (BEAM_HALF_LENGTH, BEAM_CLEARANCE + DISC_RADIUS)
     ax.add_patch(Circle(rich_centre, rich_radius, color=VIOLET, zorder=4))
     ax.add_patch(Circle(poor_centre, DISC_RADIUS, color=MAGENTA, zorder=4))
-    ax.add_patch(
-        Circle(
-            rich_centre,
-            RICH_RING_RADIUS,
-            fill=False,
-            edgecolor=VIOLET,
-            lw=LINE_WIDTH,
-            zorder=4,
-        )
-    )
 
     ax.annotate(
         f"Richest {RICH_PCT:g}%\n{n_rich:,.0f} adults\n{rich_share:.1f}% of all wealth",
-        xy=(rich_centre[0], rich_centre[1] + RICH_RING_RADIUS),
+        xy=(rich_centre[0], rich_centre[1] + rich_radius),
         xytext=(rich_centre[0], rich_centre[1] + 0.95),
         ha="center",
         va="bottom",
         fontsize=TEXT_SIZE,
         color=VIOLET,
-        arrowprops={"arrowstyle": "-", "color": VIOLET, "lw": LINE_WIDTH, "shrinkB": 0},
+        arrowprops={"arrowstyle": "-", "color": VIOLET, "lw": LINE_WIDTH, "shrinkB": 4},
     )
     ax.text(
         *poor_centre,
