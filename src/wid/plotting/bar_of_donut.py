@@ -14,7 +14,9 @@ from matplotlib.patches import ConnectionPatch
 
 from wid.plotting.donut_chart import (
     BLUE,
-    DETAILED_GROUPS,
+    GREEN,
+    MAGENTA,
+    VIOLET,
     Group,
     GroupSpec,
     build_groups,
@@ -24,18 +26,21 @@ from wid.plotting.donut_chart import (
 from wid.plotting.style import INK_SECONDARY, LABEL_FONTSIZE, SURFACE
 
 TOP_NAME = "Top 1%"
-# The top 1% slice in the donut, and its parts (richest last) in the bar: one
-# ordinal blue ramp, darker = richer.
-TOP_GROUP = GroupSpec(TOP_NAME, 1.0, 0.0, BLUE)
-TOP_PARTS: tuple[GroupSpec, ...] = (
-    GroupSpec("Top 1–0.1%", 1.0, 0.1, "#86b6ef"),
-    GroupSpec("Top 0.1–0.01%", 0.1, 0.01, "#5598e7"),
-    GroupSpec("Top 0.01–0.001%", 0.01, 0.001, "#256abf"),
-    GroupSpec("Top 0.001%", 0.001, 0.0, "#104281"),
-)
+# Ring colours, validated in wedge order (including the wrap-around pair top 1% /
+# bottom 50%) for colour-blind separation.
 DONUT_GROUPS: tuple[GroupSpec, ...] = (
-    *(spec for spec in DETAILED_GROUPS if spec.upper > TOP_GROUP.upper),
-    TOP_GROUP,
+    GroupSpec("Bottom 50%", 100.0, 50.0, MAGENTA),
+    GroupSpec("Middle 40%", 50.0, 10.0, GREEN),
+    GroupSpec("Top 10–1%", 10.0, 1.0, BLUE),
+    GroupSpec(TOP_NAME, 1.0, 0.0, VIOLET),
+)
+# The top 1% split up in the bar (richest last): an ordinal purple ramp at the
+# violet's hue (OKLCH h ≈ 284), darker = richer.
+TOP_PARTS: tuple[GroupSpec, ...] = (
+    GroupSpec("Top 1–0.1%", 1.0, 0.1, "#a2a2e8"),
+    GroupSpec("Top 0.1–0.01%", 0.1, 0.01, "#7d78d7"),
+    GroupSpec("Top 0.01–0.001%", 0.01, 0.001, "#5b50b9"),
+    GroupSpec("Top 0.001%", 0.001, 0.0, "#3d2e8d"),
 )
 
 BAR_WIDTH = 0.2
@@ -74,7 +79,7 @@ def plot_bar(ax: Axes, parts: list[Group], total_pct: float) -> None:
         ha="center",
         va="bottom",
         fontsize=LABEL_FONTSIZE + 1,
-        color=BLUE,
+        color=VIOLET,
     )
     ax.set_xlim(*BAR_X_LIMITS)
     ax.set_ylim(-BAR_Y_MARGIN * total_pct, (1 + BAR_Y_MARGIN) * total_pct)
