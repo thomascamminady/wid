@@ -1,0 +1,33 @@
+[project]
+name = "wid"
+version = "0.1.0"
+description = "Wealth inequality in Germany from WID.world g-percentile data"
+readme = "README.md"
+authors = [
+    { name = "thomas", email = "0milieux_member@icloud.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "fire>=0.7.1",
+    "ipykernel>=7.4.0",
+    "ipython>=9.17.1",
+    "matplotlib>=3.11.2",
+    "polars>=1.44.2",
+    "pyarrow>=25.0.1",
+    "remotezip>=0.12.6",
+]
+
+[project.scripts]
+fetch-data = "wid.cli:fetch_data_main"
+plot-line = "wid.cli:plot_line_main"
+plot-donut = "wid.cli:plot_donut_main"
+
+[build-system]
+requires = ["uv_build>=0.12.7,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.16.10",
+    "ty>=0.0.84",
+]
