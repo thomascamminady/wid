@@ -24,6 +24,7 @@ BEAM_HALF_LENGTH = 1.75
 FULCRUM_HALF_WIDTH = 0.28
 FULCRUM_HEIGHT = 0.7
 BEAM_CLEARANCE = 0.006  # circles rest on top of the beam's line width
+RICH_LIFT = 0.01
 
 # The drawing is large so that the small circle (1/224 of the big one's radius)
 # stays visible; text and line widths scale with it.
@@ -35,9 +36,8 @@ FOOTER_SIZE = 18
 BEAM_WIDTH = 5.0
 LINE_WIDTH = 2.5
 SCALE_GREY = "#8c8a85"  # beam and wedge: lighter than the text grey
-TITLE_GAP = 0.32  # data units above the big circle
+TITLE_GAP = 0.12  # data units above the big circle
 RICH_LABEL_GAP = 0.06
-SUBTITLE_GAP = 0.12
 
 
 def group_shares(bins: pl.DataFrame) -> tuple[float, float]:
@@ -88,7 +88,8 @@ def plot_balance(bins: pl.DataFrame, adults: int, year: int, out_path: Path) -> 
     )
 
     # One circle per side, resting on the beam's ends.
-    rich_centre = (-BEAM_HALF_LENGTH, BEAM_CLEARANCE + rich_radius)
+    # The small circle floats a few pixels above the beam so it stays visible.
+    rich_centre = (-BEAM_HALF_LENGTH, BEAM_CLEARANCE + RICH_LIFT + rich_radius)
     poor_centre = (BEAM_HALF_LENGTH, BEAM_CLEARANCE + DISC_RADIUS)
     ax.add_patch(Circle(rich_centre, rich_radius, color=VIOLET, zorder=4))
     ax.add_patch(Circle(poor_centre, DISC_RADIUS, color=MAGENTA, zorder=4))
@@ -119,7 +120,7 @@ def plot_balance(bins: pl.DataFrame, adults: int, year: int, out_path: Path) -> 
     x_min, x_max = -BEAM_HALF_LENGTH - 0.75, BEAM_HALF_LENGTH + DISC_RADIUS + 0.02
     ax.set_xlim(x_min, x_max)
     ax.set_ylim(-FULCRUM_HEIGHT, 2 * DISC_RADIUS + 0.02)
-    # Title and subtitle sit just above the drawing, centred on it.
+    # Title sits just above the drawing, centred on it.
     centre_x = (x_min + x_max) / 2
     ax.text(
         centre_x,
@@ -131,22 +132,12 @@ def plot_balance(bins: pl.DataFrame, adults: int, year: int, out_path: Path) -> 
         fontsize=TITLE_SIZE,
         color=INK_SECONDARY,
     )
-    ratio = f"{n_poor / n_rich:,.0f}".replace(",", " ")  # 50 000
+    # Footer in two lines, bottom right, its last line level with the wedge's base.
     ax.text(
-        centre_x,
-        2 * DISC_RADIUS + SUBTITLE_GAP,
-        f"Circle areas are proportional to the number of adults (1 : {ratio}).",
-        ha="center",
-        va="bottom",
-        fontsize=TEXT_SIZE,
-        color=INK_SECONDARY,
-    )
-    # Footer in two lines, bottom left, its last line level with the wedge's base.
-    ax.text(
-        x_min,
+        x_max,
         -FULCRUM_HEIGHT,
         SOURCE_NOTE.replace(" · ", "\n"),
-        ha="left",
+        ha="right",
         va="bottom",
         fontsize=FOOTER_SIZE,
         color=INK_SECONDARY,
