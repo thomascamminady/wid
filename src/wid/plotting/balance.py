@@ -23,7 +23,6 @@ DISC_RADIUS = 1.0
 BEAM_HALF_LENGTH = 1.75
 FULCRUM_HALF_WIDTH = 0.28
 FULCRUM_HEIGHT = 0.7
-FULCRUM_GAP = 0.04  # space between the wedge's tip and the beam
 BEAM_CLEARANCE = 0.006  # circles rest on top of the beam's line width
 RICH_RING_RADIUS = 0.06  # marks the tiny circle so it can be found
 
@@ -36,6 +35,9 @@ TEXT_SIZE = 28
 FOOTER_SIZE = 18
 BEAM_WIDTH = 5.0
 LINE_WIDTH = 2.5
+SCALE_GREY = "#8c8a85"  # beam and wedge: lighter than the text grey
+TITLE_GAP = 0.32  # data units above the big circle
+SUBTITLE_GAP = 0.12
 
 
 def group_shares(bins: pl.DataFrame) -> tuple[float, float]:
@@ -62,11 +64,11 @@ def plot_balance(bins: pl.DataFrame, adults: int, year: int, out_path: Path) -> 
     ax.set_aspect("equal")
     ax.axis("off")
 
-    # Level beam resting on a wedge, with a little space above the wedge's tip.
+    # Level beam resting on a wedge.
     ax.plot(
         [-BEAM_HALF_LENGTH, BEAM_HALF_LENGTH],
         [0.0, 0.0],
-        color=INK_SECONDARY,
+        color=SCALE_GREY,
         lw=BEAM_WIDTH,
         solid_capstyle="round",
         zorder=3,
@@ -74,12 +76,12 @@ def plot_balance(bins: pl.DataFrame, adults: int, year: int, out_path: Path) -> 
     ax.add_patch(
         Polygon(
             [
-                (0.0, -FULCRUM_GAP),
+                (0.0, 0.0),
                 (-FULCRUM_HALF_WIDTH, -FULCRUM_HEIGHT),
                 (FULCRUM_HALF_WIDTH, -FULCRUM_HEIGHT),
             ],
             closed=True,
-            facecolor=INK_SECONDARY,
+            facecolor=SCALE_GREY,
             edgecolor="none",
             zorder=2,
         )
@@ -112,44 +114,48 @@ def plot_balance(bins: pl.DataFrame, adults: int, year: int, out_path: Path) -> 
         arrowprops={"arrowstyle": "-", "color": VIOLET, "lw": LINE_WIDTH, "shrinkB": 0},
     )
     ax.text(
-        poor_centre[0],
-        poor_centre[1] + DISC_RADIUS + 0.1,
+        *poor_centre,
         f"Poorest {POOR_PCT:g}%\n{n_poor / 1e6:.1f} million adults\n"
         f"{poor_share:.1f}% of all wealth",
         ha="center",
-        va="bottom",
+        va="center",
         fontsize=TEXT_SIZE,
-        color=MAGENTA,
+        color="white",
+        zorder=5,
     )
 
-    ax.set_xlim(-BEAM_HALF_LENGTH - 0.75, BEAM_HALF_LENGTH + DISC_RADIUS + 0.1)
-    ax.set_ylim(-FULCRUM_HEIGHT - 0.1, 2 * DISC_RADIUS + 0.75)
-    # The equal aspect shrinks the axes inside the figure; centre the text on
-    # the drawing rather than on the (wider) canvas.
-    fig.canvas.draw()
-    box = ax.get_position()
-    centre_x = (box.x0 + box.x1) / 2
-    fig.suptitle(
+    # Small margins so the big circle (which rests on the beam's line width)
+    # is not clipped at the top or right.
+    x_min, x_max = -BEAM_HALF_LENGTH - 0.75, BEAM_HALF_LENGTH + DISC_RADIUS + 0.02
+    ax.set_xlim(x_min, x_max)
+    ax.set_ylim(-FULCRUM_HEIGHT, 2 * DISC_RADIUS + 0.02)
+    # Title and subtitle sit just above the drawing, centred on it.
+    centre_x = (x_min + x_max) / 2
+    ax.text(
+        centre_x,
+        2 * DISC_RADIUS + TITLE_GAP,
         f"Germany {year}: the richest {RICH_PCT:g}% own about as much as the "
         f"poorest {POOR_PCT:g}%",
-        color=INK_SECONDARY,
-        fontsize=TITLE_SIZE,
-        x=centre_x,
-        y=0.97,
-    )
-    fig.text(
-        centre_x,
-        0.915,
-        f"Circle areas are proportional to the number of adults "
-        f"(1 : {n_poor / n_rich:,.0f}).",
         ha="center",
+        va="bottom",
+        fontsize=TITLE_SIZE,
+        color=INK_SECONDARY,
+    )
+    ratio = f"{n_poor / n_rich:,.0f}".replace(",", " ")  # 50 000
+    ax.text(
+        centre_x,
+        2 * DISC_RADIUS + SUBTITLE_GAP,
+        f"Circle areas are proportional to the number of adults (1 : {ratio}).",
+        ha="center",
+        va="bottom",
         fontsize=TEXT_SIZE,
         color=INK_SECONDARY,
     )
-    fig.text(
-        box.x1,
-        0.01,
-        SOURCE_NOTE,
+    # Footer in two lines, its last line level with the wedge's base.
+    ax.text(
+        x_max,
+        -FULCRUM_HEIGHT,
+        SOURCE_NOTE.replace(" · ", "\n"),
         ha="right",
         va="bottom",
         fontsize=FOOTER_SIZE,
