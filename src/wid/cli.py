@@ -4,9 +4,15 @@ from pathlib import Path
 
 import fire
 
-from wid.io import DEFAULT_CSV, fetch_and_tidy, load_cumulative
+from wid.io import DEFAULT_CSV, fetch_and_tidy, load_cumulative, wealth_by_percentile
 from wid.io.fetch import DEFAULT_RAW_DIR
-from wid.plotting import plot_bar_of_donut, plot_donuts, plot_line_chart
+from wid.plotting import (
+    plot_bar_of_donut,
+    plot_donuts,
+    plot_line_chart,
+    plot_percentile_bars,
+    plot_wealth_donut_shaded,
+)
 
 DEFAULT_YEAR = 2024
 OUTPUT_DIR = Path("output")
@@ -49,6 +55,30 @@ def plot_bar_donut(
     plot_bar_of_donut(load_cumulative(Path(csv_path), year), year, Path(out_path))
 
 
+def plot_percentiles(
+    year: int = DEFAULT_YEAR,
+    csv_path: str = str(DEFAULT_CSV),
+    out_path: str = str(OUTPUT_DIR / "germany_wealth_percentiles.png"),
+) -> None:
+    """Bar chart of average net wealth in each percentile of adults."""
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    plot_percentile_bars(
+        wealth_by_percentile(Path(csv_path), year), year, Path(out_path)
+    )
+
+
+def plot_wealth_donut(
+    year: int = DEFAULT_YEAR,
+    csv_path: str = str(DEFAULT_CSV),
+    out_path: str = str(OUTPUT_DIR / "germany_wealth_donut_shaded.png"),
+) -> None:
+    """Wealth donut with the top 1% arc split into purple shades."""
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    plot_wealth_donut_shaded(
+        load_cumulative(Path(csv_path), year), year, Path(out_path)
+    )
+
+
 def fetch_data_main() -> None:
     fire.Fire(fetch_data)
 
@@ -63,3 +93,11 @@ def plot_donut_main() -> None:
 
 def plot_bar_donut_main() -> None:
     fire.Fire(plot_bar_donut)
+
+
+def plot_percentiles_main() -> None:
+    fire.Fire(plot_percentiles)
+
+
+def plot_wealth_donut_main() -> None:
+    fire.Fire(plot_wealth_donut)

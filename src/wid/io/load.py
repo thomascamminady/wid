@@ -32,3 +32,24 @@ def cum_share_at(df: pl.DataFrame, top_pct: float) -> float:
     if top_pct == 0.0:
         return 0.0
     return df.filter((pl.col("top_pct") - top_pct).abs() < 1e-9)["cum_share_pct"].item()
+
+
+def wealth_by_percentile(
+    csv_path: Path = DEFAULT_CSV, year: int = 2024
+) -> pl.DataFrame:
+    """Average wealth and wealth share per whole percentile of adults.
+
+    The finer bins above p99 are merged into the single p99-p100 percentile.
+    Within a percentile the bin widths add up to 1, so the width-weighted sum of
+    the bin averages is the percentile's average.
+    """
+    return (
+        load_gpercentiles(csv_path, year)
+        .group_by(
+            pct_lo=pl.col("lo").floor().cast(pl.Int32),
+            pct_hi=pl.col("hi").ceil().cast(pl.Int32),
+        )
+        .agg(avg_eur=((pl.col("hi") - pl.col("lo")) * pl.col("avg_eur")).sum())
+        .with_columns(share=pl.col("avg_eur") / pl.col("avg_eur").sum())
+        .sort("pct_lo")
+    )

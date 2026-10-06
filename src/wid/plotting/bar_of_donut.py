@@ -144,3 +144,23 @@ def plot_bar_of_donut(df: pl.DataFrame, year: int, out_path: Path) -> None:
         top.wealth_pct,
     )
     finish_figure(fig, year, out_path)
+
+
+def plot_wealth_donut_shaded(df: pl.DataFrame, year: int, out_path: Path) -> None:
+    """The same wealth donut without the bar: the top 1% arc in purple shades."""
+    groups = build_groups(df, (*DONUT_GROUPS[:-1], *TOP_PARTS))
+    wealth = [g.wealth_pct for g in groups]
+    top_total = sum(g.wealth_pct for g in groups[-len(TOP_PARTS) :])
+
+    fig, ax = plt.subplots(figsize=(7.5, 6.2), facecolor=SURFACE)
+    fig.subplots_adjust(left=0.02, right=0.98, top=0.88, bottom=0.06)
+    # Same orientation as the bar-of-donut chart: the top 1% arc centred on 3 o'clock.
+    plot_donut(
+        ax,
+        groups,
+        wealth,
+        [f"{g.name}\n{g.wealth_pct:.1f}%" for g in groups],
+        "Share of\nwealth",
+        start_angle=180.0 * top_total / sum(wealth),
+    )
+    finish_figure(fig, year, out_path)
