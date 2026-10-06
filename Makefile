@@ -1,6 +1,6 @@
 YEAR ?= 2024
 
-.PHONY: help install hooks data plot-line plot-donut plots format lint check clean
+.PHONY: help install hooks data plot-line plot-donut plot-donut-zoom plots format lint check clean
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -20,7 +20,10 @@ plot-line: ## Log-x line chart of top wealth shares (YEAR=2024)
 plot-donut: ## Donuts: share of adults vs. share of wealth (YEAR=2024)
 	uv run plot-donut --year $(YEAR)
 
-plots: plot-line plot-donut ## All charts
+plot-donut-zoom: ## Donuts with the top 1% combined and a zoom inset (YEAR=2024)
+	uv run plot-donut-zoom --year $(YEAR)
+
+plots: plot-line plot-donut plot-donut-zoom ## All charts
 
 format: ## Format with ruff
 	uv run ruff format src notebooks

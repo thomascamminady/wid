@@ -1,49 +1,81 @@
-"""Two donuts: share of adults vs. share of wealth for the same groups."""
+"""Two donuts: share of adults vs. share of wealth for the same groups.
+
+`plot_donuts` splits the top 1% into decade bands. `plot_donuts_zoom` keeps the
+top 1% as one group and magnifies its sliver of the adults donut in an inset.
+"""
 
 import math
 from dataclasses import dataclass
-from itertools import pairwise
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import polars as pl
 from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 
 from wid.io.load import cum_share_at
-from wid.plotting.style import INK, INK_SECONDARY, LABEL_FONTSIZE, SOURCE_NOTE, SURFACE
+from wid.plotting.style import (
+    INK,
+    INK_SECONDARY,
+    LABEL_FONTSIZE,
+    SOURCE_NOTE,
+    SURFACE,
+)
 
-# Group edges as "richest x%", from everyone down to the very top.
-GROUP_EDGES: tuple[float, ...] = (100.0, 50.0, 10.0, 1.0, 0.1, 0.01, 0.001, 0.0)
-GROUP_NAMES: tuple[str, ...] = (
-    "Bottom 50%",
-    "Middle 40%",
-    "Top 10–1%",
-    "Top 1–0.1%",
-    "Top 0.1–0.01%",
-    "Top 0.01–0.001%",
-    "Top 0.001%",
+# Categorical palette slots, validated in wedge order (including the
+# wrap-around pair at 12 o'clock) for colour-blind separation.
+VIOLET = "#4a3aa7"
+GREEN = "#008300"
+MAGENTA = "#e87ba4"
+YELLOW = "#eda100"
+AQUA = "#1baf7a"
+ORANGE = "#eb6834"
+BLUE = "#2a78d6"
+
+
+@dataclass(frozen=True)
+class GroupSpec:
+    """A population group as a band of "richest x%": from `upper` down to `lower`."""
+
+    name: str
+    upper: float
+    lower: float
+    color: str
+
+
+# Poorest first. Shared groups keep the same colour in both charts.
+DETAILED_GROUPS: tuple[GroupSpec, ...] = (
+    GroupSpec("Bottom 50%", 100.0, 50.0, VIOLET),
+    GroupSpec("Middle 40%", 50.0, 10.0, GREEN),
+    GroupSpec("Top 10–1%", 10.0, 1.0, MAGENTA),
+    GroupSpec("Top 1–0.1%", 1.0, 0.1, YELLOW),
+    GroupSpec("Top 0.1–0.01%", 0.1, 0.01, AQUA),
+    GroupSpec("Top 0.01–0.001%", 0.01, 0.001, ORANGE),
+    GroupSpec("Top 0.001%", 0.001, 0.0, BLUE),
 )
-# Categorical palette slots 1-7 in their validated order, assigned richest
-# first so wedge neighbours (including the wrap-around pair top 0.001% /
-# bottom 50%) pass the colour-blind separation checks.
-GROUP_COLORS: tuple[str, ...] = (
-    "#4a3aa7",  # Bottom 50%: violet
-    "#008300",  # Middle 40%: green
-    "#e87ba4",  # Top 10–1%: magenta
-    "#eda100",  # Top 1–0.1%: yellow
-    "#1baf7a",  # Top 0.1–0.01%: aqua
-    "#eb6834",  # Top 0.01–0.001%: orange
-    "#2a78d6",  # Top 0.001%: blue
+COARSE_GROUPS: tuple[GroupSpec, ...] = (
+    *DETAILED_GROUPS[:3],
+    GroupSpec("Top 1%", 1.0, 0.0, BLUE),
 )
-# Wedges run clockwise from 12 o'clock, richest first.
+
+# Wedges run clockwise, richest first. The adults donut starts at 12 o'clock;
+# the wealth donut is rotated so this group sits where it does in the adults one.
 DONUT_START_ANGLE = 90.0
+ALIGN_GROUP = "Middle 40%"
 DONUT_RING_WIDTH = 0.38
 DONUT_LABEL_RADIUS = 1.3
 DONUT_STUB_RADIUS = 1.1
-DONUT_AXIS_HALF_WIDTH = 2.3
-DONUT_LABEL_MIN_GAP = 0.27  # data units (radius = 1)
+DONUT_AXIS_HALF_WIDTH = 1.9  # labels may run past it
+DONUT_LABEL_LINE_HEIGHT = 0.135  # data units (radius = 1) per text line
+DONUT_LABEL_PADDING = 0.01
 DONUT_LABEL_Y_MAX = 1.62
-DONUT_Y_HALF_HEIGHT = 1.78
+DONUT_Y_LIMITS: tuple[float, float] = (-1.78, 1.78)
+
+# Zoom inset over the top 1% sliver at 12 o'clock (data units of the donut).
+ZOOM_REGION_X: tuple[float, float] = (-0.24, 0.30)
+ZOOM_REGION_Y: tuple[float, float] = (0.80, 1.10)
+ZOOM_INSET_BOUNDS: tuple[float, float, float, float] = (-0.87, 1.32, 1.8, 1.0)
+ZOOM_Y_LIMITS: tuple[float, float] = (-1.78, 2.45)
 
 
 @dataclass(frozen=True)
@@ -54,14 +86,16 @@ class Group:
     wealth_pct: float
 
 
-def build_groups(df: pl.DataFrame) -> list[Group]:
+def build_groups(df: pl.DataFrame, specs: tuple[GroupSpec, ...]) -> list[Group]:
     """Population and wealth share (%) per group, poorest group first."""
-    cum = [cum_share_at(df, edge) for edge in GROUP_EDGES]
     return [
-        Group(name, color, upper - lower, cum_hi - cum_lo)
-        for name, color, (upper, lower), (cum_hi, cum_lo) in zip(
-            GROUP_NAMES, GROUP_COLORS, pairwise(GROUP_EDGES), pairwise(cum), strict=True
+        Group(
+            spec.name,
+            spec.color,
+            spec.upper - spec.lower,
+            cum_share_at(df, spec.upper) - cum_share_at(df, spec.lower),
         )
+        for spec in specs
     ]
 
 
@@ -69,7 +103,8 @@ def spread_labels(ys: list[float], min_gap: float, y_max: float) -> list[float]:
     """Place labels near their natural heights, at least `min_gap` apart.
 
     Overlapping labels merge into a cluster centred on their mean natural height;
-    clusters are clamped to [-y_max, y_max].
+    clusters are clamped to [-y_max, y_max]. The top-to-bottom order of the
+    natural heights is kept, so leader lines on one side do not cross.
     """
 
     def place(cluster: list[int]) -> list[float]:
@@ -95,39 +130,75 @@ def spread_labels(ys: list[float], min_gap: float, y_max: float) -> list[float]:
     return out
 
 
+def mid_angle(values: list[float], index: int, start_angle: float) -> float:
+    """Mid-angle (degrees) of wedge `index` when drawn richest-first, clockwise."""
+    richer = sum(values[index + 1 :])  # values are poorest first
+    return start_angle - 360.0 * (richer + values[index] / 2) / sum(values)
+
+
+def aligned_start_angle(
+    values: list[float], reference: list[float], index: int
+) -> float:
+    """Start angle that puts wedge `index` where it sits in the `reference` donut."""
+    target = mid_angle(reference, index, DONUT_START_ANGLE)
+    return target - mid_angle(values, index, 0.0)
+
+
+def draw_ring(
+    ax: Axes,
+    groups: list[Group],
+    values: list[float],
+    start_angle: float = DONUT_START_ANGLE,
+    clip: bool = False,
+) -> list[float]:
+    """Draw the ring richest-first, clockwise; return wedge mid-angles (radians).
+
+    pie() draws unclipped wedges; pass `clip=True` when the axes is a zoomed view.
+    """
+    wedges, *_ = ax.pie(
+        values[::-1],
+        colors=[g.color for g in groups[::-1]],
+        startangle=start_angle,
+        counterclock=False,
+        wedgeprops={
+            "width": DONUT_RING_WIDTH,
+            "edgecolor": SURFACE,
+            "linewidth": 1.5,
+            "clip_on": clip,
+        },
+    )
+    return [math.radians((w.theta1 + w.theta2) / 2) for w in wedges][::-1]
+
+
 def plot_donut(
     ax: Axes,
     groups: list[Group],
     values: list[float],
-    value_labels: list[str],
+    labels: list[str],
     centre: str,
+    unlabelled: frozenset[str] = frozenset(),
+    y_limits: tuple[float, float] = DONUT_Y_LIMITS,
+    start_angle: float = DONUT_START_ANGLE,
 ) -> None:
-    # Richest first, clockwise from 12 o'clock, so both donuts share the layout.
-    richest_first = list(range(len(groups)))[::-1]
-    wedges, *_ = ax.pie(
-        [values[i] for i in richest_first],
-        colors=[groups[i].color for i in richest_first],
-        startangle=DONUT_START_ANGLE,
-        counterclock=False,
-        wedgeprops={"width": DONUT_RING_WIDTH, "edgecolor": SURFACE, "linewidth": 1.5},
-    )
+    """Draw one donut with a leader-lined label per group (poorest group first)."""
+    mids = draw_ring(ax, groups, values, start_angle)
     ax.text(0, 0, centre, ha="center", va="center", fontsize=13, color=INK_SECONDARY)
 
-    # Spread labels per side so thin neighbouring wedges do not stack their text.
-    mids = [math.radians((w.theta1 + w.theta2) / 2) for w in wedges]
-    on_right = [math.cos(m) >= 0 for m in mids]
-    label_y = [DONUT_LABEL_RADIUS * math.sin(m) for m in mids]
-    for side in (True, False):
-        idx = [i for i, r in enumerate(on_right) if r == side]
-        spread = spread_labels(
-            [label_y[i] for i in idx], DONUT_LABEL_MIN_GAP, DONUT_LABEL_Y_MAX
-        )
-        for i, y in zip(idx, spread, strict=True):
-            label_y[i] = y
+    shown = [i for i, g in enumerate(groups) if g.name not in unlabelled]
+    n_lines = max(labels[i].count("\n") + 1 for i in shown)
+    min_gap = n_lines * DONUT_LABEL_LINE_HEIGHT + DONUT_LABEL_PADDING
 
-    for wedge_i, group_i in enumerate(richest_first):
-        mid, right, y = mids[wedge_i], on_right[wedge_i], label_y[wedge_i]
-        sign = 1.0 if right else -1.0
+    # Spread labels per side so thin neighbouring wedges do not stack their text.
+    on_right = {i: math.cos(mids[i]) >= 0 for i in shown}
+    label_y = {i: DONUT_LABEL_RADIUS * math.sin(mids[i]) for i in shown}
+    for side in (True, False):
+        idx = [i for i in shown if on_right[i] == side]
+        spread = spread_labels([label_y[i] for i in idx], min_gap, DONUT_LABEL_Y_MAX)
+        label_y.update(zip(idx, spread, strict=True))
+
+    for i in shown:
+        mid, y = mids[i], label_y[i]
+        sign = 1.0 if on_right[i] else -1.0
         # Leader: a short radial stub out of the wedge, a diagonal to the
         # label's height, then a short horizontal run into the text.
         ax.plot(
@@ -144,44 +215,44 @@ def plot_donut(
         ax.text(
             sign * DONUT_LABEL_RADIUS,
             y,
-            f"{groups[group_i].name}\n{value_labels[group_i]}",
-            ha="left" if right else "right",
+            labels[i],
+            ha="left" if on_right[i] else "right",
             va="center",
             fontsize=LABEL_FONTSIZE,
             color=INK,
         )
     ax.set_xlim(-DONUT_AXIS_HALF_WIDTH, DONUT_AXIS_HALF_WIDTH)
-    ax.set_ylim(-DONUT_Y_HALF_HEIGHT, DONUT_Y_HALF_HEIGHT)
-    ax.set_aspect("equal")
+    ax.set_ylim(*y_limits)
+    ax.set_aspect("equal", adjustable="box")  # pie() switches to "datalim"
 
 
-def plot_donuts(df: pl.DataFrame, year: int, out_path: Path) -> None:
-    groups = build_groups(df)
-    fig, (ax_pop, ax_wealth) = plt.subplots(1, 2, figsize=(13, 6), facecolor=SURFACE)
-    fig.subplots_adjust(left=0.01, right=0.99, top=0.88, bottom=0.08, wspace=0.0)
-
+def plot_wealth_donut(
+    ax: Axes, groups: list[Group], y_limits: tuple[float, float] = DONUT_Y_LIMITS
+) -> None:
+    """Wealth donut, rotated so ALIGN_GROUP lines up with the adults donut."""
+    wealth = [g.wealth_pct for g in groups]
+    align = [g.name for g in groups].index(ALIGN_GROUP)
     plot_donut(
-        ax_pop,
+        ax,
         groups,
-        [g.population_pct for g in groups],
-        [f"{g.population_pct:g}%" for g in groups],
-        "Share of\nadults",
-    )
-    plot_donut(
-        ax_wealth,
-        groups,
-        [g.wealth_pct for g in groups],
-        [f"{g.wealth_pct:.1f}%" for g in groups],
+        wealth,
+        [f"{g.name}\n{g.wealth_pct:.1f}%" for g in groups],
         "Share of\nwealth",
+        y_limits=y_limits,
+        start_angle=aligned_start_angle(
+            wealth, [g.population_pct for g in groups], align
+        ),
     )
 
+
+def finish_figure(fig: Figure, year: int, out_path: Path) -> None:
     fig.suptitle(
-        f"Germany {year}: who owns the wealth", color=INK_SECONDARY, fontsize=15
+        f"Germany {year}: who owns the wealth", color=INK_SECONDARY, fontsize=20
     )
     fig.text(
         0.99,
         0.02,
-        f"{SOURCE_NOTE}\nThe top 1% of adults are slivers too thin to see in the left donut.",
+        SOURCE_NOTE,
         fontsize=8,
         ha="right",
         va="bottom",
@@ -190,3 +261,79 @@ def plot_donuts(df: pl.DataFrame, year: int, out_path: Path) -> None:
     )
     fig.savefig(out_path, dpi=200, facecolor=SURFACE, bbox_inches="tight")
     print(f"Saved {out_path}")
+
+
+def plot_donuts(df: pl.DataFrame, year: int, out_path: Path) -> None:
+    groups = build_groups(df, DETAILED_GROUPS)
+    fig, (ax_pop, ax_wealth) = plt.subplots(1, 2, figsize=(11, 5.6), facecolor=SURFACE)
+    fig.subplots_adjust(left=0.01, right=0.99, top=0.88, bottom=0.08, wspace=0.0)
+
+    # Group names already state the share of adults, so no second line.
+    plot_donut(
+        ax_pop,
+        groups,
+        [g.population_pct for g in groups],
+        [g.name for g in groups],
+        "Share of\nadults",
+    )
+    plot_wealth_donut(ax_wealth, groups)
+    finish_figure(fig, year, out_path)
+
+
+def add_zoom_inset(ax: Axes, groups: list[Group], values: list[float]) -> None:
+    """Magnify the 12 o'clock region of the donut, where the top 1% sits."""
+    axins = ax.inset_axes(ZOOM_INSET_BOUNDS, transform=ax.transData)
+    draw_ring(axins, groups, values, clip=True)
+    axins.set_xlim(*ZOOM_REGION_X)
+    axins.set_ylim(*ZOOM_REGION_Y)
+    axins.set_aspect("equal", adjustable="box")
+    axins.set_xticks([])
+    axins.set_yticks([])
+    axins.set_frame_on(True)  # pie() switches the frame off
+    axins.set_facecolor(SURFACE)
+    for spine in axins.spines.values():
+        spine.set_edgecolor(INK_SECONDARY)
+        spine.set_linewidth(0.8)
+
+    top = groups[-1]
+    # Above the ring, centred on the richest wedge (0 -> sin of its angle).
+    wedge_x = math.sin(math.radians(top.population_pct * 3.6)) / 2
+    axins.text(
+        wedge_x,
+        1.025,
+        top.name,
+        ha="center",
+        va="bottom",
+        fontsize=LABEL_FONTSIZE,
+        color=INK,
+    )
+    # Only the zoom rectangle; matplotlib's own connectors join matching corners
+    # (bottom to bottom), which cuts across the donut. Join the rectangle's top
+    # corners to the inset's bottom corners instead.
+    (x0, x1), (y0, y1) = ZOOM_REGION_X, ZOOM_REGION_Y
+    ax.indicate_inset(
+        (x0, y0, x1 - x0, y1 - y0), edgecolor=INK_SECONDARY, linewidth=0.8, alpha=1.0
+    )
+    inset_x, inset_y, inset_w, _ = ZOOM_INSET_BOUNDS
+    for rect_x, box_x in ((x0, inset_x), (x1, inset_x + inset_w)):
+        ax.plot([rect_x, box_x], [y1, inset_y], color=INK_SECONDARY, linewidth=0.8)
+
+
+def plot_donuts_zoom(df: pl.DataFrame, year: int, out_path: Path) -> None:
+    groups = build_groups(df, COARSE_GROUPS)
+    population = [g.population_pct for g in groups]
+    fig, (ax_pop, ax_wealth) = plt.subplots(1, 2, figsize=(11, 6.8), facecolor=SURFACE)
+    fig.subplots_adjust(left=0.01, right=0.99, top=0.9, bottom=0.07, wspace=0.0)
+
+    plot_donut(
+        ax_pop,
+        groups,
+        population,
+        [g.name for g in groups],
+        "Share of\nadults",
+        unlabelled=frozenset({groups[-1].name}),  # labelled in the inset
+        y_limits=ZOOM_Y_LIMITS,
+    )
+    add_zoom_inset(ax_pop, groups, population)
+    plot_wealth_donut(ax_wealth, groups, y_limits=ZOOM_Y_LIMITS)
+    finish_figure(fig, year, out_path)
