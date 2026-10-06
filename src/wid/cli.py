@@ -25,6 +25,7 @@ from wid.plotting import (
     plot_percentile_bars_zoom,
     plot_wealth_donut_shaded,
 )
+from wid.plotting.percentile_bars import Lang
 
 DEFAULT_YEAR = 2024
 OUTPUT_DIR = Path("output")
@@ -110,16 +111,22 @@ def plot_percentiles_zoom(
 def plot_percentiles_staircase(
     year: int = DEFAULT_YEAR,
     csv_path: str = str(DEFAULT_CSV),
-    out_path: str = str(OUTPUT_DIR / "germany_wealth_percentiles_staircase.png"),
+    out_path: str | None = None,
+    lang: Lang = "en",
 ) -> None:
-    """The percentile zooms as a staircase joined by zoom lines."""
-    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    """The percentile zooms as a staircase joined by zoom lines (lang: en or de)."""
+    suffix = "" if lang == "en" else f"_{lang}"
+    path = Path(
+        out_path or OUTPUT_DIR / f"germany_wealth_percentiles_staircase{suffix}.png"
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
     plot_percentile_bars_staircase(
         wealth_by_percentile(Path(csv_path), year),
         wealth_in_top_percent(Path(csv_path), year, step=0.01, top_pct=1.0),
         wealth_in_top_percent(Path(csv_path), year, step=0.001, top_pct=0.01),
         year,
-        Path(out_path),
+        path,
+        lang,
     )
 
 

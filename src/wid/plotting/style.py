@@ -12,3 +12,7 @@ SOURCE_NOTE = (
     " · Chart: Thomas Camminady"
 )
 LABEL_FONTSIZE = 9
+SOURCE_NOTE_DE = (
+    "Daten: WID.world (Nettovermögen, Erwachsene ab 20, Paarvermögen hälftig geteilt)"
+    " · Grafik: Thomas Camminady"
+)

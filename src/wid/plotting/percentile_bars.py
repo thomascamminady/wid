@@ -20,7 +20,13 @@ from matplotlib.ticker import FuncFormatter, MultipleLocator
 from matplotlib.transforms import blended_transform_factory, offset_copy
 
 from wid.plotting.bar_of_donut import DONUT_GROUPS, TOP_PARTS
-from wid.plotting.style import GRID, INK_SECONDARY, SOURCE_NOTE, SURFACE
+from wid.plotting.style import (
+    GRID,
+    INK_SECONDARY,
+    SOURCE_NOTE,
+    SOURCE_NOTE_DE,
+    SURFACE,
+)
 
 
 @dataclass(frozen=True)
@@ -83,6 +89,7 @@ STAIRCASE_PANEL_WIDTH = 0.6
 STAIRCASE_PANEL_HEIGHT = 0.22
 STAIRCASE_LEFTS: tuple[float, ...] = (0.07, 0.22, 0.37)
 STAIRCASE_BOTTOMS: tuple[float, ...] = (0.71, 0.395, 0.08)
+STAIRCASE_TITLE_GAP = 0.015  # figure fraction between top panel and title
 # Zoom lines start from one point this far below the x axis (axes fraction),
 # just under the "100%" tick label. Their label sits this far right of the
 # right-hand line's midpoint (points).
@@ -91,14 +98,78 @@ ZOOM_LABEL_OFFSET = 8.0
 ZOOM_LINE_WIDTH = 0.6
 
 
-def format_eur(value: float, _pos: int | None = None) -> str:
-    if abs(value) >= 1e9:
-        return f"€{value / 1e9:g}bn"
-    if abs(value) >= 1e6:
-        return f"€{value / 1e6:g}M"
-    if abs(value) >= 1e3:
-        return f"€{value / 1e3:g}k"
-    return f"€{value:g}"
+Lang = Literal["en", "de"]
+
+# User-facing text of the staircase figure (and the shared bar labels).
+TEXTS: dict[Lang, dict[str, str]] = {
+    "en": {
+        "of_all_wealth": "of all wealth",
+        "ylabel": "Average net wealth per adult",
+        "title": "Germany {year}: " + MULTI_PANEL_TITLE,
+        "x_all": "All adults, sorted from poorest (left) to richest (right)",
+        "x_top1": "The richest 1% of adults",
+        "x_top001": "The richest 0.01% of adults",
+        "zoom_top1": "Zoom into\nthe top 1%",
+        "zoom_top001": "Zoom into\nthe top 0.01%",
+        "footer": SOURCE_NOTE,
+    },
+    "de": {
+        "of_all_wealth": "des Gesamtvermögens",
+        "ylabel": "Ø Nettovermögen pro Erwachsenem",
+        "title": "Deutschland {year}: durchschnittliches Nettovermögen pro "
+        "Erwachsenem,\nvon den Ärmsten bis zu den reichsten 0,001 %",
+        "x_all": "Alle Erwachsenen, sortiert von den Ärmsten (links) bis zu den "
+        "Reichsten (rechts)",
+        "x_top1": "Die reichsten 1 % der Erwachsenen",
+        "x_top001": "Die reichsten 0,01 % der Erwachsenen",
+        "zoom_top1": "Zoom auf die\nreichsten 1 %",
+        "zoom_top001": "Zoom auf die\nreichsten 0,01 %",
+        "footer": SOURCE_NOTE_DE,
+    },
+}
+
+
+def german_number(text: str) -> str:
+    """Decimal comma: 99.2 -> 99,2."""
+    return text.replace(".", ",")
+
+
+def format_pct(fraction: float, lang: Lang) -> str:
+    """0.279 -> "27.9%" (en) or "27,9 %" (de)."""
+    if lang == "de":
+        return f"{german_number(f'{100 * fraction:.1f}')} %"
+    return f"{fraction:.1%}"
+
+
+def format_pct_tick(value: float, lang: Lang) -> str:
+    """Axis ticks in percent of adults: 99.2 -> "99.2%" (en) or "99,2 %" (de)."""
+    return f"{german_number(f'{value:g}')} %" if lang == "de" else f"{value:g}%"
+
+
+def format_eur(value: float, _pos: int | None = None, lang: Lang = "en") -> str:
+    """€8M, €1.2bn (en) or 8 Mio. €, 1,2 Mrd. € (de)."""
+    units = (
+        ((1e9, "Mrd. €"), (1e6, "Mio. €"), (1e3, "Tsd. €"))
+        if lang == "de"
+        else ((1e9, "bn"), (1e6, "M"), (1e3, "k"))
+    )
+    for scale, unit in units:
+        if abs(value) >= scale:
+            number = f"{value / scale:g}"
+            break
+    else:
+        number, unit = f"{value:g}", ("€" if lang == "de" else "")
+    if lang == "de":
+        return f"{german_number(number)} {unit}"
+    return f"€{number}{unit}"
+
+
+def group_label(name: str, lang: Lang) -> str:
+    """Group names in German: "Top 1–0.1%" -> "Top 1–0,1 %"."""
+    if lang == "en":
+        return name
+    name = name.replace("Bottom", "Untere").replace("Middle", "Mittlere")
+    return german_number(name).replace("%", " %")
 
 
 def font_size(scale: float) -> float:
@@ -120,6 +191,7 @@ def draw_bars(
     xlabel: str,
     xlabel_loc: Literal["left", "center", "right"] = "center",
     clip_at_zero: bool = False,
+    lang: Lang = "en",
 ) -> None:
     """Bars from `bars` (columns lo, hi, avg_eur, share), one share label per group.
 
@@ -148,7 +220,11 @@ def draw_bars(
     # One label per group with the share of all wealth the whole group holds.
     for group in groups:
         idx = [i for i, x in enumerate(lo) if group.x0 <= x < group.x1]
-        text = f"{group.name}\n{sum(share[i] for i in idx):.1%} of all wealth"
+        group_share = format_pct(sum(share[i] for i in idx), lang)
+        text = (
+            f"{group_label(group.name, lang)}\n"
+            f"{group_share} {TEXTS[lang]['of_all_wealth']}"
+        )
         tallest = max(max(avg[i] for i in idx), 0.0)
         if len(idx) == 1:
             # A single bar: label to its left, top-aligned with the bar.
@@ -182,14 +258,14 @@ def draw_bars(
     ax.set_xlim(x_min, x_max)
     ax.set_ylim(bottom=0.0 if clip_at_zero else None, top=y_top)
     ax.xaxis.set_major_locator(MultipleLocator(tick_step))
-    ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}%"))
-    ax.yaxis.set_major_formatter(FuncFormatter(format_eur))
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: format_pct_tick(v, lang)))
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: format_eur(v, lang=lang)))
     # No gridline above the tallest bar. Keep ticks inside the current limits
     # too: set_yticks would otherwise stretch the axis to an out-of-view tick.
     y_bottom = ax.get_ylim()[0]
     ax.set_yticks([t for t in ax.get_yticks() if y_bottom <= t <= max(avg)])
     ax.set_xlabel(xlabel, color=INK_SECONDARY, loc=xlabel_loc)
-    ax.set_ylabel("Average net wealth per adult", color=INK_SECONDARY)
+    ax.set_ylabel(TEXTS[lang]["ylabel"], color=INK_SECONDARY)
 
     ax.grid(True, axis="y", color=GRID, linewidth=0.8, zorder=0)
     ax.tick_params(colors=INK_SECONDARY, length=0, pad=8)
@@ -210,11 +286,11 @@ def draw_all_adults(ax: Axes, df_pct: pl.DataFrame) -> None:
     )
 
 
-def save(fig: Figure, out_path: Path) -> None:
+def save(fig: Figure, out_path: Path, footer: str = SOURCE_NOTE) -> None:
     fig.text(
         0.99,
         0.005,
-        SOURCE_NOTE,
+        footer,
         fontsize=font_size(FOOTER_SCALE),
         ha="right",
         va="bottom",
@@ -358,15 +434,17 @@ def plot_percentile_bars_staircase(
     df_top001: pl.DataFrame,
     year: int,
     out_path: Path,
+    lang: Lang = "en",
 ) -> None:
     """The three panels of `plot_percentile_bars_zoom` as a staircase of zooms.
 
     All text is drawn 20% larger than in the other charts, for phone screens.
+    `lang="de"` draws the figure in German.
     """
     # Saving happens inside the context too: tick labels pick up their size
     # when they are drawn.
     with plt.rc_context({"font.size": STAIRCASE_FONT_SIZE}):
-        _plot_staircase(df_pct, df_top1, df_top001, year, out_path)
+        _plot_staircase(df_pct, df_top1, df_top001, year, out_path, lang)
 
 
 def _plot_staircase(
@@ -375,7 +453,9 @@ def _plot_staircase(
     df_top001: pl.DataFrame,
     year: int,
     out_path: Path,
+    lang: Lang,
 ) -> None:
+    text = TEXTS[lang]
     fig = plt.figure(figsize=STAIRCASE_FIGSIZE, facecolor=SURFACE)
     ax_all, ax_top1, ax_top001 = (
         fig.add_axes((left, bottom, STAIRCASE_PANEL_WIDTH, STAIRCASE_PANEL_HEIGHT))
@@ -388,31 +468,37 @@ def _plot_staircase(
         df_pct.rename({"pct_lo": "lo", "pct_hi": "hi"}),
         ALL_ADULTS_GROUPS,
         tick_step=20,
-        xlabel="All adults, sorted from poorest (left) to richest (right)",
+        xlabel=text["x_all"],
         xlabel_loc="left",
         clip_at_zero=True,
+        lang=lang,
     )
     draw_bars(
         ax_top1,
         df_top1,
         TOP_PERCENT_GROUPS,
         tick_step=0.2,
-        xlabel="The richest 1% of adults",
+        xlabel=text["x_top1"],
         xlabel_loc="left",
+        lang=lang,
     )
     draw_bars(
         ax_top001,
         df_top001,
         TOP_BASIS_POINT_GROUPS,
         tick_step=0.002,
-        xlabel="The richest 0.01% of adults",
+        xlabel=text["x_top001"],
         xlabel_loc="left",
+        lang=lang,
     )
+    # Anchor the title by its bottom edge just above the top panel, so a
+    # two-line title (German) grows upwards instead of into the panel.
     fig.suptitle(
-        f"Germany {year}: {MULTI_PANEL_TITLE}",
+        text["title"].format(year=year),
         color=INK_SECONDARY,
         fontsize=font_size(TITLE_SCALE),
-        y=0.97,
+        y=STAIRCASE_BOTTOMS[0] + STAIRCASE_PANEL_HEIGHT + STAIRCASE_TITLE_GAP,
+        va="bottom",
     )
     link_zoom(
         fig,
@@ -421,7 +507,7 @@ def _plot_staircase(
         99.0,
         100.0,
         df_pct["avg_eur"][-1],
-        "Zoom into\nthe top 1%",
+        text["zoom_top1"],
     )
     link_zoom(
         fig,
@@ -430,6 +516,6 @@ def _plot_staircase(
         99.99,
         100.0,
         df_top1["avg_eur"][-1],
-        "Zoom into\nthe top 0.01%",
+        text["zoom_top001"],
     )
-    save(fig, out_path)
+    save(fig, out_path, text["footer"])
