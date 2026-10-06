@@ -17,6 +17,7 @@ from wid.plotting import (
     plot_donuts,
     plot_line_chart,
     plot_percentile_bars,
+    plot_percentile_bars_staircase,
     plot_percentile_bars_zoom,
     plot_wealth_donut_shaded,
 )
@@ -102,6 +103,22 @@ def plot_percentiles_zoom(
     )
 
 
+def plot_percentiles_staircase(
+    year: int = DEFAULT_YEAR,
+    csv_path: str = str(DEFAULT_CSV),
+    out_path: str = str(OUTPUT_DIR / "germany_wealth_percentiles_staircase.png"),
+) -> None:
+    """The percentile zooms as a staircase joined by zoom lines."""
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    plot_percentile_bars_staircase(
+        wealth_by_percentile(Path(csv_path), year),
+        wealth_in_top_percent(Path(csv_path), year, step=0.01, top_pct=1.0),
+        wealth_in_top_percent(Path(csv_path), year, step=0.001, top_pct=0.01),
+        year,
+        Path(out_path),
+    )
+
+
 def fetch_data_main() -> None:
     fire.Fire(fetch_data)
 
@@ -128,3 +145,7 @@ def plot_wealth_donut_main() -> None:
 
 def plot_percentiles_zoom_main() -> None:
     fire.Fire(plot_percentiles_zoom)
+
+
+def plot_percentiles_staircase_main() -> None:
+    fire.Fire(plot_percentiles_staircase)

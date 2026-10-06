@@ -5,6 +5,7 @@ from wid.plotting.donut_chart import plot_donuts
 from wid.plotting.line_chart import plot_line_chart
 from wid.plotting.percentile_bars import (
     plot_percentile_bars,
+    plot_percentile_bars_staircase,
     plot_percentile_bars_zoom,
 )
 
@@ -13,6 +14,7 @@ __all__ = [
     "plot_donuts",
     "plot_line_chart",
     "plot_percentile_bars",
+    "plot_percentile_bars_staircase",
     "plot_percentile_bars_zoom",
     "plot_wealth_donut_shaded",
 ]
