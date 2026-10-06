@@ -12,7 +12,8 @@ import matplotlib.pyplot as plt
 import polars as pl
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
-from matplotlib.ticker import FuncFormatter, MultipleLocator
+from matplotlib.patches import ConnectionPatch, Rectangle
+from matplotlib.ticker import FuncFormatter
 
 from wid.plotting.bar_of_donut import DONUT_GROUPS, TOP_PARTS
 from wid.plotting.style import GRID, INK_SECONDARY, LABEL_FONTSIZE, SOURCE_NOTE, SURFACE
@@ -50,6 +51,9 @@ CENTRED_LABEL_MIN_FRACTION = 0.2
 NARROW_LABEL_INSET = 0.006  # fraction of the x range; keeps text off the next bar
 LABEL_LIFT = 0.04  # fraction of the y range between a group's tallest bar and label
 Y_HEADROOM = 1.25  # y range = tallest bar * this, room for the top label
+# Text in the gaps between zoom panels gets an opaque background, so the zoom
+# connector lines (drawn behind the axes) pass behind it instead of through it.
+TEXT_BACKGROUND = {"facecolor": SURFACE, "edgecolor": "none", "pad": 1.5}
 
 
 def format_eur(value: float, _pos: int | None = None) -> str:
@@ -120,10 +124,14 @@ def draw_bars(
 
     ax.set_xlim(x_min, x_max)
     ax.set_ylim(top=y_top)
-    ax.xaxis.set_major_locator(MultipleLocator(tick_step))
-    ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}%"))
+    n_ticks = round(x_range / tick_step)
+    ticks = [round(x_min + k * tick_step, 6) for k in range(n_ticks + 1)]
+    # Fixed ticks keep their Text objects, so the backgrounds below stick.
+    ax.set_xticks(ticks, [f"{t:g}%" for t in ticks])
+    for label in ax.get_xticklabels():
+        label.set_bbox(TEXT_BACKGROUND)
     ax.yaxis.set_major_formatter(FuncFormatter(format_eur))
-    ax.set_xlabel(xlabel, color=INK_SECONDARY)
+    ax.set_xlabel(xlabel, color=INK_SECONDARY, bbox=TEXT_BACKGROUND)
     ax.set_ylabel("Average net wealth per adult", color=INK_SECONDARY)
 
     ax.grid(True, axis="y", color=GRID, linewidth=0.8, zorder=0)
@@ -143,6 +151,41 @@ def draw_all_adults(ax: Axes, df_pct: pl.DataFrame) -> None:
         xlabel="All adults, sorted from poorest (left) to richest (right). "
         "Each bar is 1% of adults.",
     )
+
+
+def link_zoom(
+    fig: Figure, ax_from: Axes, ax_to: Axes, x0: float, x1: float, height: float
+) -> None:
+    """Box the bar(s) x0..x1 in `ax_from` and draw lines to the corners of `ax_to`.
+
+    The lines run from the box's bottom corners to the top corners of `ax_to`
+    (which spans exactly x0..x1). They sit behind the axes, so each opaque panel
+    hides the stretch inside it and only the part in the gap shows.
+    """
+    ax_from.add_patch(
+        Rectangle(
+            (x0, 0.0),
+            x1 - x0,
+            height,
+            fill=False,
+            edgecolor=INK_SECONDARY,
+            linewidth=0.8,
+            zorder=5,
+        )
+    )
+    y_top = ax_to.get_ylim()[1]
+    for x in (x0, x1):
+        fig.add_artist(
+            ConnectionPatch(
+                xyA=(x, 0.0),
+                coordsA=ax_from.transData,
+                xyB=(x, y_top),
+                coordsB=ax_to.transData,
+                color=INK_SECONDARY,
+                linewidth=0.8,
+                zorder=-1,
+            )
+        )
 
 
 def save(fig: Figure, out_path: Path) -> None:
@@ -213,6 +256,10 @@ def plot_percentile_bars_zoom(
         (ax_top1, "Zoom into the top 1%"),
         (ax_top001, "Zoom into the top 0.01%"),
     ):
-        ax.set_title(title, color=INK_SECONDARY, fontsize=12, pad=10)
+        ax.set_title(
+            title, color=INK_SECONDARY, fontsize=12, pad=10, bbox=TEXT_BACKGROUND
+        )
     fig.tight_layout(rect=(0, 0.015, 1, 1), h_pad=3)
+    link_zoom(fig, ax_all, ax_top1, 99.0, 100.0, df_pct["avg_eur"][-1])
+    link_zoom(fig, ax_top1, ax_top001, 99.99, 100.0, df_top1["avg_eur"][-1])
     save(fig, out_path)
