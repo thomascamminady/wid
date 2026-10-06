@@ -8,6 +8,7 @@ GRID = "#e4e3df"
 SURFACE = "#fcfcfb"
 
 SOURCE_NOTE = (
-    "Source: WID.world (shwealj992, net personal wealth, equal-split adults 20+)."
+    "Data: WID.world (net personal wealth, equal-split adults 20+)"
+    " · Chart: Thomas Camminady"
 )
 LABEL_FONTSIZE = 9
