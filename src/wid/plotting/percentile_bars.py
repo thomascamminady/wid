@@ -4,26 +4,22 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import polars as pl
-from matplotlib.patches import Patch
 from matplotlib.ticker import FuncFormatter, MultipleLocator
 
 from wid.plotting.bar_of_donut import DONUT_GROUPS
 from wid.plotting.style import (
     GRID,
-    INK,
     INK_SECONDARY,
     LABEL_FONTSIZE,
     SOURCE_NOTE,
     SURFACE,
 )
 
-# Percentiles (pct_lo) whose bars get a value label. Each bar is one percentile
-# (1% of adults), so the labels name the slice, not a cumulative group.
-ANNOTATE_PCT: dict[int, str] = {
-    50: "p50–p51 (median)",
-    90: "p90–p91",
-    99: "p99–p100 (top 1%)",
-}
+# Groups spanning fewer percentiles than this get a right-aligned label ending at
+# the group's right edge, so it does not run off the chart.
+CENTRED_LABEL_MIN_WIDTH = 20
+NARROW_LABEL_INSET = 0.6  # percentiles; keeps text off the neighbouring bar
+LABEL_LIFT = 0.04  # fraction of the y range between a group's tallest bar and label
 
 
 def group_color(pct_lo: int) -> str:
@@ -40,13 +36,6 @@ def format_eur(value: float, _pos: int | None = None) -> str:
     if abs(value) >= 1e3:
         return f"€{value / 1e3:g}k"
     return f"€{value:g}"
-
-
-def format_eur_rounded(value: float) -> str:
-    """Value labels: €9.7M, €751k."""
-    if abs(value) >= 1e6:
-        return f"€{value / 1e6:.1f}M"
-    return f"€{value / 1e3:.0f}k"
 
 
 def plot_percentile_bars(df_pct: pl.DataFrame, year: int, out_path: Path) -> None:
@@ -68,24 +57,37 @@ def plot_percentile_bars(df_pct: pl.DataFrame, year: int, out_path: Path) -> Non
     )
     ax.axhline(0, color=INK_SECONDARY, linewidth=0.8, zorder=4)
 
-    for p, name in ANNOTATE_PCT.items():
-        i = pct.index(p)
-        ax.annotate(
-            f"{name}\n{format_eur_rounded(avg[i])} avg · {share[i]:.1%} of all wealth",
-            xy=(p + 0.5, max(avg[i], 0)),
-            xytext=(-6, 8),
-            textcoords="offset points",
-            ha="right",
+    y_top = max(avg) * 1.25  # room for the top-1% label
+    lift = LABEL_LIFT * y_top
+    # One label per group with the share of all wealth the whole group holds.
+    for spec in DONUT_GROUPS:
+        x0, x1 = 100 - spec.upper, 100 - spec.lower
+        idx = [i for i, p in enumerate(pct) if x0 <= p < x1]
+        group_share = sum(share[i] for i in idx)
+        y = max(max(avg[i] for i in idx), 0.0) + lift
+        if spec.upper == 100.0:
+            text = f"{spec.name}: {group_share:.1%} of all wealth, virtually nothing"
+        else:
+            text = f"{spec.name}\n{group_share:.1%} of all wealth"
+        wide = x1 - x0 >= CENTRED_LABEL_MIN_WIDTH
+        if x1 - x0 > 1:
+            # Bracket over the group's bars.
+            ax.plot([x0 + 0.3, x1 - 0.3], [y, y], color=spec.color, linewidth=1.2)
+        ax.text(
+            (x0 + x1) / 2 if wide else x1 - NARROW_LABEL_INSET,
+            y + lift / 2,
+            text,
+            ha="center" if wide else "right",
             va="bottom",
             fontsize=LABEL_FONTSIZE,
-            color=group_color(p),
+            color=spec.color,
         )
 
     ax.set_xlim(0, 100)
     ax.xaxis.set_major_locator(MultipleLocator(10))
     ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"p{v:g}"))
     ax.yaxis.set_major_formatter(FuncFormatter(format_eur))
-    ax.set_ylim(top=max(avg) * 1.25)  # room for the top-1% label
+    ax.set_ylim(top=y_top)
     ax.set_xlabel("Adults ranked by net wealth (percentile)", color=INK_SECONDARY)
     ax.set_ylabel("Average net wealth per adult", color=INK_SECONDARY)
     ax.set_title(
@@ -93,13 +95,6 @@ def plot_percentile_bars(df_pct: pl.DataFrame, year: int, out_path: Path) -> Non
         color=INK_SECONDARY,
         fontsize=16,
         pad=12,
-    )
-    ax.legend(
-        handles=[Patch(facecolor=s.color, label=s.name) for s in DONUT_GROUPS],
-        loc="upper left",
-        frameon=False,
-        fontsize=LABEL_FONTSIZE,
-        labelcolor=INK,
     )
 
     ax.grid(True, axis="y", color=GRID, linewidth=0.8, zorder=0)
