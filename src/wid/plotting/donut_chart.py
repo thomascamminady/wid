@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 import polars as pl
 from matplotlib.axes import Axes
 
-from wid.data import cum_share_at
-from wid.style import INK, INK_SECONDARY, LABEL_FONTSIZE, SOURCE_NOTE, SURFACE
+from wid.io.load import cum_share_at
+from wid.plotting.style import INK, INK_SECONDARY, LABEL_FONTSIZE, SOURCE_NOTE, SURFACE
 
 # Group edges as "richest x%", from everyone down to the very top.
 GROUP_EDGES: tuple[float, ...] = (100.0, 50.0, 10.0, 1.0, 0.1, 0.01, 0.001, 0.0)

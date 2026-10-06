@@ -1,12 +1,15 @@
 YEAR ?= 2024
 
-.PHONY: help install data plot-line plot-donut plots format lint check clean
+.PHONY: help install hooks data plot-line plot-donut plots format lint check clean
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
 
 install: ## Create the virtual environment from uv.lock
 	uv sync
+
+hooks: ## Install the pre-commit hooks
+	uv run pre-commit install
 
 data: ## Download Germany from the WID bulk zip and write the tidy CSV
 	uv run fetch-data
@@ -20,13 +23,14 @@ plot-donut: ## Donuts: share of adults vs. share of wealth (YEAR=2024)
 plots: plot-line plot-donut ## All charts
 
 format: ## Format with ruff
-	uv run ruff format src
+	uv run ruff format src notebooks
 
 lint: ## Lint with ruff and type-check with ty
-	uv run ruff check src
-	uv run ty check src
+	uv run ruff check src notebooks
+	uv run ty check
 
-check: format lint ## Format, lint and type-check
+check: ## Run every pre-commit hook on all files
+	uv run pre-commit run --all-files
 
 clean: ## Remove generated outputs and the raw download
 	rm -rf output data/raw

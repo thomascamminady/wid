@@ -4,9 +4,9 @@ from pathlib import Path
 
 import fire
 
-from wid.data import DEFAULT_CSV, DEFAULT_RAW_DIR, fetch_and_tidy, load_cumulative
-from wid.donut_chart import plot_donuts
-from wid.line_chart import plot_line_chart
+from wid.io import DEFAULT_CSV, fetch_and_tidy, load_cumulative
+from wid.io.fetch import DEFAULT_RAW_DIR
+from wid.plotting import plot_donuts, plot_line_chart
 
 DEFAULT_YEAR = 2024
 OUTPUT_DIR = Path("output")

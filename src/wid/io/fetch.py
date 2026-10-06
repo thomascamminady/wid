@@ -1,4 +1,4 @@
-"""Fetch WID wealth data for Germany and load it for plotting."""
+"""Download WID wealth data for Germany and tidy it into g-percentile bins."""
 
 from itertools import pairwise
 from pathlib import Path
@@ -6,10 +6,11 @@ from pathlib import Path
 import polars as pl
 from remotezip import RemoteZip
 
+from wid.io.load import DEFAULT_CSV
+
 WID_BULK_URL = "https://wid.world/bulk_download/wid_all_data.zip"
 RAW_FILE_NAME = "WID_data_DE.csv"
 DEFAULT_RAW_DIR = Path("data/raw")
-DEFAULT_CSV = Path("data/germany_wealth_gpercentiles_wid.csv")
 
 # Net personal wealth, equal-split adults (20+): share, threshold, average.
 VARIABLES: dict[str, str] = {
@@ -67,23 +68,3 @@ def fetch_and_tidy(
     df.write_csv(out_csv)
     print(f"Saved {out_csv} ({df.height} rows, {df['year'].n_unique()} years)")
     return out_csv
-
-
-def load_cumulative(csv_path: Path, year: int) -> pl.DataFrame:
-    """Return top population fraction (%) vs. cumulative wealth share (%)."""
-    return (
-        pl.read_csv(csv_path)
-        .filter(pl.col("year") == year)
-        .sort("lo", descending=True)
-        .select(
-            top_pct=100.0 - pl.col("lo"),
-            cum_share_pct=pl.col("share").cum_sum() * 100.0,
-        )
-    )
-
-
-def cum_share_at(df: pl.DataFrame, top_pct: float) -> float:
-    """Cumulative share (%) held by the richest `top_pct` percent."""
-    if top_pct == 0.0:
-        return 0.0
-    return df.filter((pl.col("top_pct") - top_pct).abs() < 1e-9)["cum_share_pct"].item()

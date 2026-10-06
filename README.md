@@ -12,11 +12,15 @@ wealth. The unit is equal-split adults aged 20+.
 
 ```bash
 make install     # uv sync
+make hooks       # install pre-commit hooks (ruff, ty, nbstripout)
 make data        # fetch WID_data_DE.csv from the bulk zip -> data/germany_wealth_gpercentiles_wid.csv
 make plots       # output/germany_wealth_cumulative.png and output/germany_wealth_donuts.png
 make plot-donut YEAR=2018
-make check       # ruff format, ruff check, ty
+make check       # all pre-commit hooks on all files
 ```
+
+`notebooks/main.ipynb` loads the data with `wid.io` and draws the charts with
+`wid.plotting`.
 
 The commands are also available directly: `uv run fetch-data`, `uv run plot-line`,
 `uv run plot-donut` (each takes `--year`, `--csv_path`, `--out_path`).

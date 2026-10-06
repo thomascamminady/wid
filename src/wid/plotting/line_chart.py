@@ -12,8 +12,8 @@ import polars as pl
 from matplotlib.axes import Axes
 from matplotlib.ticker import FuncFormatter, NullLocator, PercentFormatter
 
-from wid.data import cum_share_at
-from wid.style import (
+from wid.io.load import cum_share_at
+from wid.plotting.style import (
     BLUE,
     GRID,
     INK,
