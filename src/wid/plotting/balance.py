@@ -25,6 +25,8 @@ FULCRUM_HALF_WIDTH = 0.28
 FULCRUM_HEIGHT = 0.7
 BEAM_CLEARANCE = 0.006  # circles rest on top of the beam's line width
 RICH_LIFT = 0.01
+POOR_LIFT = 0.03  # the big circle floats slightly above the beam too
+CIRCLE_X = 0.98 * BEAM_HALF_LENGTH  # circles sit a little inside the beam's ends
 
 # The drawing is large so that the small circle (1/224 of the big one's radius)
 # stays visible; text and line widths scale with it.
@@ -89,8 +91,8 @@ def plot_balance(bins: pl.DataFrame, adults: int, year: int, out_path: Path) -> 
 
     # One circle per side, resting on the beam's ends.
     # The small circle floats a few pixels above the beam so it stays visible.
-    rich_centre = (-BEAM_HALF_LENGTH, BEAM_CLEARANCE + RICH_LIFT + rich_radius)
-    poor_centre = (BEAM_HALF_LENGTH, BEAM_CLEARANCE + DISC_RADIUS)
+    rich_centre = (-CIRCLE_X, BEAM_CLEARANCE + RICH_LIFT + rich_radius)
+    poor_centre = (CIRCLE_X, BEAM_CLEARANCE + POOR_LIFT + DISC_RADIUS)
     ax.add_patch(Circle(rich_centre, rich_radius, color=VIOLET, zorder=4))
     ax.add_patch(Circle(poor_centre, DISC_RADIUS, color=MAGENTA, zorder=4))
 
@@ -117,9 +119,9 @@ def plot_balance(bins: pl.DataFrame, adults: int, year: int, out_path: Path) -> 
 
     # Small margins so the big circle (which rests on the beam's line width)
     # is not clipped at the top or right.
-    x_min, x_max = -BEAM_HALF_LENGTH - 0.75, BEAM_HALF_LENGTH + DISC_RADIUS + 0.02
+    x_min, x_max = -BEAM_HALF_LENGTH - 0.75, CIRCLE_X + DISC_RADIUS + 0.02
     ax.set_xlim(x_min, x_max)
-    ax.set_ylim(-FULCRUM_HEIGHT, 2 * DISC_RADIUS + 0.02)
+    ax.set_ylim(-FULCRUM_HEIGHT, 2 * DISC_RADIUS + POOR_LIFT + 0.02)
     # Title sits just above the drawing, centred on it.
     centre_x = (x_min + x_max) / 2
     ax.text(
