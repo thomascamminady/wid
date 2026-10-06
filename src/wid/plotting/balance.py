@@ -13,7 +13,7 @@ import polars as pl
 from matplotlib.patches import Circle, Polygon
 
 from wid.plotting.donut_chart import MAGENTA, VIOLET
-from wid.plotting.style import GRID, INK_SECONDARY, SOURCE_NOTE, SURFACE
+from wid.plotting.style import INK_SECONDARY, SOURCE_NOTE, SURFACE
 
 RICH_PCT = 0.001  # richest x% of adults
 POOR_PCT = 50.0  # poorest x% of adults
@@ -79,17 +79,10 @@ def plot_balance(bins: pl.DataFrame, adults: int, year: int, out_path: Path) -> 
                 (FULCRUM_HALF_WIDTH, -FULCRUM_HEIGHT),
             ],
             closed=True,
-            facecolor=GRID,
-            edgecolor=INK_SECONDARY,
-            lw=LINE_WIDTH,
+            facecolor=INK_SECONDARY,
+            edgecolor="none",
             zorder=2,
         )
-    )
-    ax.plot(
-        [-2 * FULCRUM_HALF_WIDTH, 2 * FULCRUM_HALF_WIDTH],
-        [-FULCRUM_HEIGHT] * 2,
-        color=INK_SECONDARY,
-        lw=LINE_WIDTH,
     )
 
     # One circle per side, resting on the beam's ends.
